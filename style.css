@@ -5,7 +5,8 @@ body {
 	background: #1a1a1a;
 	color: #fff;
 	height: 100vh;
-	/* overflow: hidden; Temporarily remove to test */
+	height: 100dvh; /* Modern mobile viewport fix */
+	overflow: hidden;
 }
 
 .contact-bar {
@@ -15,6 +16,7 @@ body {
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	flex-shrink: 0;
 }
 
 .contact-content {
@@ -80,7 +82,9 @@ body {
 
 .app-container { 
 	display: flex; 
-	height: calc(100vh - 60px); /* Adjust for contact bar */
+	height: calc(100vh - 60px);
+	height: calc(100dvh - 60px); /* Modern mobile viewport fix */
+	overflow: hidden;
 }
 
 .docs-panel {
@@ -89,6 +93,7 @@ body {
 	border-right: 1px solid #444;
 	display: flex;
 	flex-direction: column;
+	overflow: hidden;
 }
 
 .docs-header {
@@ -97,11 +102,15 @@ body {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
+	flex-shrink: 0;
 }
 
 .docs-header h2 { color: #4ecdc4; }
 .unlock-counter { font-size: 0.9rem; color: #888; }
-.docs-content { flex: 1; overflow-y: auto; }
+.docs-content { 
+	flex: 1; 
+	overflow-y: auto; 
+}
 
 .doc-section { border-bottom: 1px solid #333; }
 .doc-section.newly-unlocked { animation: unlockGlow 2s ease-out; }
@@ -125,32 +134,32 @@ body {
 .doc-content h2, .doc-content h3 { color: #fff; margin: 1rem 0 0.5rem; }
 .doc-content p { margin-bottom: 0.8rem; }
 
-.chat-panel { width: 60%; display: flex; flex-direction: column; }
-.chat-intro { padding: 2rem; text-align: center; border-bottom: 1px solid #333; }
-
-.mic-btn {
-	background: #4ecdc4;
-	border: none;
-	border-radius: 12px;
-	padding: 1rem 2rem;
-	font-size: 1.2rem;
-	color: #1a1a1a;
-	cursor: pointer;
-	transition: all 0.3s;
-	width: 100%;
-	margin: 1rem;
+.chat-panel { 
+	width: 60%; 
+	display: flex; 
+	flex-direction: column;
+	overflow: hidden;
 }
 
-.mic-btn:hover { background: #45b7d1; transform: scale(1.05); }
-.mic-btn.listening { background: #ff6b6b; animation: pulse 1.5s ease-in-out infinite; }
-
-@keyframes pulse {
-	0%, 100% { box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3); }
-	50% { box-shadow: 0 6px 25px rgba(255, 107, 107, 0.6); }
+.chat-intro { 
+	padding: 2rem; 
+	text-align: center; 
+	border-bottom: 1px solid #333; 
 }
 
-.chat-container { flex: 1; flex-direction: column; padding: 1rem; }
-.chat-messages { flex: 1; overflow-y: auto; padding: 1rem 0; }
+.chat-container { 
+	flex: 1; 
+	display: flex;
+	flex-direction: column; 
+	padding: 1rem; 
+	overflow: hidden;
+}
+
+.chat-messages { 
+	flex: 1; 
+	overflow-y: auto; 
+	padding: 1rem 0; 
+}
 
 .message {
 	margin: 1rem 0;
@@ -166,11 +175,46 @@ body {
 
 .message.user { background: #4ecdc4; color: #1a1a1a; margin-left: auto; text-align: right; }
 .message.ai { background: #333; }
-.status { padding: 1rem; text-align: center; color: #ccc; border-top: 1px solid #333; font-style: italic; }
+
+.status { 
+	padding: 1rem; 
+	text-align: center; 
+	color: #ccc; 
+	border-top: 1px solid #333; 
+	font-style: italic;
+	flex-shrink: 0;
+}
+
+.mic-btn {
+	background: #4ecdc4;
+	border: none;
+	border-radius: 12px;
+	padding: 1rem 2rem;
+	font-size: 1.2rem;
+	color: #1a1a1a;
+	cursor: pointer;
+	transition: all 0.3s;
+	margin: 1rem 0 0 0; /* Only top margin */
+	flex-shrink: 0;
+}
+
+.mic-btn:hover { background: #45b7d1; transform: scale(1.05); }
+.mic-btn.listening { background: #ff6b6b; animation: pulse 1.5s ease-in-out infinite; }
+
+@keyframes pulse {
+	0%, 100% { box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3); }
+	50% { box-shadow: 0 6px 25px rgba(255, 107, 107, 0.6); }
+}
 
 @media (max-width: 768px) {
+	body {
+		height: 100vh;
+		height: 100dvh; /* Critical mobile fix */
+	}
+	
 	.contact-bar {
 		padding: 0.5rem 1rem;
+		min-height: 50px; /* Fixed height for calculation */
 	}
 	
 	.contact-content {
@@ -184,27 +228,31 @@ body {
 	
 	.app-container { 
 		flex-direction: column;
-		height: calc(100vh - 50px); /* Smaller contact bar on mobile */
+		height: calc(100vh - 50px);
+		height: calc(100dvh - 50px); /* Mobile viewport fix */
+		overflow: hidden;
 	}
 	
 	.docs-panel { 
 		width: 100%; 
-		height: 35%; /* Reduced to make room for button */
+		height: 30%; /* Reduced for better button visibility */
+		min-height: 200px; /* Ensure minimum usability */
 	}
 	
 	.chat-panel { 
 		width: 100%; 
-		height: 65%; /* Increased to ensure button is visible */
-		min-height: 300px; /* Ensure minimum space for button */
-	}
-	
-	.mic-btn {
-		margin: 1rem;
-		padding: 0.8rem 1.5rem; /* Slightly smaller on mobile */
-		font-size: 1rem;
+		height: 70%; /* Increased for better chat area */
+		overflow: hidden;
 	}
 	
 	.chat-container {
 		padding: 0.5rem;
+		height: 100%;
+	}
+	
+	.mic-btn {
+		margin: 0.5rem 0 0 0; /* Minimal margin */
+		padding: 0.8rem 1.5rem;
+		font-size: 1rem;
 	}
 }
