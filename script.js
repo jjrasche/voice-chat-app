@@ -189,10 +189,6 @@ class VoiceChat {
 		// Update button for voice interactions
 		this.startBtn.textContent = '🎤 Click to Speak';
 		this.startBtn.onclick = () => this.toggleListening();
-		this.startBtn.style.position = 'fixed';
-		this.startBtn.style.bottom = '2rem';
-		this.startBtn.style.right = '2rem';
-		this.startBtn.style.zIndex = '1000';
 
 		this.updateStatus('Click the microphone to start speaking');
 	}
