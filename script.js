@@ -186,11 +186,18 @@ class VoiceChat {
 		this.chatIntro.style.display = 'none';
 		this.chatContainer.classList.add('active');
 
-		// Update button for voice interactions
+		// Move and restyle button prominently
+		this.startBtn.style.position = 'fixed';
+		this.startBtn.style.bottom = '2rem';
+		this.startBtn.style.right = '2rem';
+		this.startBtn.style.zIndex = '1000';
 		this.startBtn.textContent = '🎤 Click to Speak';
 		this.startBtn.onclick = () => this.toggleListening();
 
-		this.updateStatus('Click the microphone to start speaking');
+		// Add welcome message to make chat area obvious
+		this.addMessage("Voice chat activated! Click the microphone to start our conversation about AI-native tools.", 'ai');
+
+		this.updateStatus('👆 Click the floating microphone to speak');
 	}
 
 	toggleListening() {
