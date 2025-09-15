@@ -114,7 +114,7 @@ class VoiceChat {
 		this.submitContact.textContent = 'Saving...';
 
 		try {
-			await fetch('/api/contacts', {
+			await fetch('/api/contact', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -129,7 +129,7 @@ class VoiceChat {
 			this.submitContact.style.display = 'none';
 
 			// Save email to localStorage
-			// localStorage.setItem('userEmail', email);
+			localStorage.setItem('userEmail', email);
 		} catch (error) {
 			alert('Failed to save contact. Please try again.');
 			this.submitContact.disabled = false;
@@ -194,17 +194,30 @@ class VoiceChat {
 			return;
 		}
 		this.recognition = new webkitSpeechRecognition();
+		this.isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
 		Object.assign(this.recognition, {
-			continuous: true,
+			continuous: !this.isMobile, // Mobile works better with false
 			interimResults: true,
 			lang: 'en-US',
 			onstart: () => this.updateStatus('Listening...'),
 			onresult: (e) => this.onSpeechResult(e),
-			onend: () => this.updateStatus('Click to start listening...'),
+			onend: () => {
+				if (this.isListening && !this.isMobile) {
+					// Auto-restart on desktop only
+					setTimeout(() => this.recognition.start(), 100);
+				} else {
+					this.updateStatus('Click to start listening...');
+				}
+			},
 			onerror: (e) => {
 				console.error('Speech error:', e.error);
-				this.updateStatus('Speech error - trying again...');
-				this.startListening();
+				if (e.error === 'no-speech' && this.isListening) {
+					// Restart on no-speech error
+					setTimeout(() => this.recognition.start(), 500);
+				} else {
+					this.updateStatus('Speech error - click to try again...');
+				}
 			}
 		});
 	}
@@ -229,9 +242,9 @@ class VoiceChat {
 	}
 
 	startCountdown = () => {
-		let seconds = 3;
+		let seconds = 5;
 		const countdownTick = () => {
-			this.updateStatus(`Sending in ${seconds}... ${'●'.repeat(4 - seconds)}`);
+			this.updateStatus(`Sending in ${seconds}... ${'●'.repeat(6 - seconds)}`);
 			seconds--;
 			if (seconds > 0) {
 				this.pauseTimer = setTimeout(countdownTick, 1000);
@@ -270,7 +283,15 @@ class VoiceChat {
 		this.startBtn.textContent = '⏹️ Stop';
 		this.startBtn.classList.add('listening');
 		this.updateStatus('Listening...');
-		this.recognition.start();
+
+		try {
+			this.recognition.start();
+		} catch (error) {
+			console.error('Failed to start recognition:', error);
+			this.isListening = false;
+			this.startBtn.textContent = '🎤 Listen';
+			this.startBtn.classList.remove('listening');
+		}
 	}
 
 	stopListening() {

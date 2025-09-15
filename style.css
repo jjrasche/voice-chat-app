@@ -131,17 +131,14 @@ body {
 .mic-btn {
 	background: #4ecdc4;
 	border: none;
-	border-radius: 50px;
+	border-radius: 12px;
 	padding: 1rem 2rem;
 	font-size: 1.2rem;
 	color: #1a1a1a;
 	cursor: pointer;
 	transition: all 0.3s;
-	position: fixed; /* Force visible position for testing */
-	bottom: 20px;
-	left: 50%;
-	transform: translateX(-50%);
-	z-index: 9999;
+	width: 100%;
+	margin: 1rem;
 }
 
 .mic-btn:hover { background: #45b7d1; transform: scale(1.05); }
