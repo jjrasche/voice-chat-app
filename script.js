@@ -17,17 +17,24 @@ class VoiceChat {
 		this.initSpeech();
 		this.bindEvents();
 		this.loadInitialDocs();
+		this.initializeChat();
 	}
 
 	initElements() {
-		this.startBtn = document.getElementById('startBtn');
-		this.chatIntro = document.querySelector('.chat-intro');
+		this.micBtn = document.getElementById('micBtn');
 		this.chatContainer = document.getElementById('chatContainer');
 		this.messages = document.getElementById('messages');
 		this.status = document.getElementById('status');
 		this.docsContent = document.getElementById('docsContent');
 		this.unlockedCount = document.getElementById('unlockedCount');
 		this.totalDocs = document.getElementById('totalDocs');
+	}
+
+	initializeChat() {
+		// Add initial AI greeting
+		const greeting = "Hey! I'm here to talk about building AI tools that give people 10X capability. What interests you most about AI-native workflows?";
+		this.addMessage(greeting, 'ai');
+		this.updateStatus('Click the microphone to respond');
 	}
 
 	async loadInitialDocs() {
@@ -179,25 +186,7 @@ class VoiceChat {
 	}
 
 	bindEvents() {
-		this.startBtn.onclick = () => this.startChat();
-	}
-
-	startChat() {
-		this.chatIntro.style.display = 'none';
-		this.chatContainer.classList.add('active');
-
-		// Move and restyle button prominently
-		this.startBtn.style.position = 'fixed';
-		this.startBtn.style.bottom = '2rem';
-		this.startBtn.style.right = '2rem';
-		this.startBtn.style.zIndex = '1000';
-		this.startBtn.textContent = '🎤 Click to Speak';
-		this.startBtn.onclick = () => this.toggleListening();
-
-		// Add welcome message to make chat area obvious
-		this.addMessage("Voice chat activated! Click the microphone to start our conversation about AI-native tools.", 'ai');
-
-		this.updateStatus('👆 Click the floating microphone to speak');
+		this.micBtn.onclick = () => this.toggleListening();
 	}
 
 	toggleListening() {
@@ -215,7 +204,7 @@ class VoiceChat {
 		this.currentTranscript = '';
 		this.clearPauseTimer();
 		this.updateStatus('🎤 Listening... speak now');
-		this.startBtn.textContent = '⏹️ Stop';
+		this.micBtn.textContent = '⏹️';
 		this.recognition.start();
 	}
 
@@ -225,8 +214,8 @@ class VoiceChat {
 		this.isListening = false;
 		this.clearPauseTimer();
 		this.recognition.stop();
-		this.startBtn.textContent = '🎤 Click to Speak';
-		this.updateStatus('Click microphone to speak again');
+		this.micBtn.textContent = '🎤';
+		this.updateStatus('Click microphone to speak');
 	}
 
 	clearPauseTimer() {
@@ -346,7 +335,7 @@ class VoiceChat {
 	onSpeechEnd() {
 		// Don't auto-restart - user must click to re-engage
 		this.isListening = false;
-		this.startBtn.textContent = '🎤 Click to Speak';
+		this.micBtn.textContent = '🎤';
 	}
 
 	onSpeechError(event) {
@@ -361,9 +350,8 @@ class VoiceChat {
 }
 
 // Global instance for onclick handlers
-document.addEventListener('DOMContentLoaded', () => {
-	const voiceChat = new VoiceChat();
-});
+const voiceChat = new VoiceChat();
+
 // Add CSS animations for notifications
 const style = document.createElement('style');
 style.textContent = `
