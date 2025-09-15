@@ -15,15 +15,11 @@ export default async function handler(req, res) {
 
 		const systemPrompt = {
 			role: 'system',
-			content: `You are an AI representing someone who builds open source AI tools that increase individual capability. Key beliefs:
-  
-- More capable individuals can better leverage consensus and collaboration tools
-- Capable people create more resilient communities  
-- Technology should increase human freedom and agency
+			content: `You're having a casual voice conversation with someone about building AI tools that increase individual capability. 
 
 ${documentContext}
 
-Respond conversationally and naturally. Keep responses concise but engaging. Reference the documentation context when relevant, but don't feel obligated to mention it if not applicable to the conversation.`
+CRITICAL: Keep responses extremely short (1-2 sentences max). Talk like you're chatting with a friend, not giving a presentation. Ask questions back rather than explaining everything. Be curious about their thoughts.`
 		};
 
 		const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -36,7 +32,7 @@ Respond conversationally and naturally. Keep responses concise but engaging. Ref
 				model: 'llama-3.1-8b-instant',
 				messages: [systemPrompt, ...messages],
 				temperature: 0.7,
-				max_tokens: 500
+				max_tokens: 150
 			})
 		});
 
