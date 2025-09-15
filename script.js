@@ -114,7 +114,7 @@ class VoiceChat {
 		this.submitContact.textContent = 'Saving...';
 
 		try {
-			await fetch('/api/contact', {
+			await fetch('/api/contacts', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -129,7 +129,7 @@ class VoiceChat {
 			this.submitContact.style.display = 'none';
 
 			// Save email to localStorage
-			localStorage.setItem('userEmail', email);
+			// localStorage.setItem('userEmail', email);
 		} catch (error) {
 			alert('Failed to save contact. Please try again.');
 			this.submitContact.disabled = false;
