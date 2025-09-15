@@ -6,19 +6,36 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Chat with [Your Name]</title>
 	<link rel="stylesheet" href="style.css">
+	<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 
 <body>
-	<div class="container">
-		<div class="intro" id="intro">
-			<h1>Hi, I'm building AI tools that increase individual capability</h1>
-			<p>More capable people create more capable communities. Want to chat about it?</p>
-			<button id="startBtn" class="mic-btn">🎤 Start Talking</button>
+	<div class="app-container">
+		<!-- Documentation Panel -->
+		<div class="docs-panel">
+			<div class="docs-header">
+				<h2>Knowledge Base</h2>
+				<div class="unlock-counter">
+					<span id="unlockedCount">1</span> of <span id="totalDocs">5</span> unlocked
+				</div>
+			</div>
+			<div class="docs-content" id="docsContent">
+				<!-- Documents load here progressively -->
+			</div>
 		</div>
 
-		<div class="chat-container" id="chatContainer" style="display: none;">
-			<div class="chat-messages" id="messages"></div>
-			<div class="status" id="status">Ready to listen...</div>
+		<!-- Chat Panel -->
+		<div class="chat-panel">
+			<div class="chat-intro">
+				<h1>Hi, I'm building AI tools that increase individual capability</h1>
+				<p>Browse the knowledge base, then start a voice conversation</p>
+				<button id="startBtn" class="mic-btn">🎤 Start Talking</button>
+			</div>
+
+			<div class="chat-container" id="chatContainer">
+				<div class="chat-messages" id="messages"></div>
+				<div class="status" id="status">Ready to listen...</div>
+			</div>
 		</div>
 	</div>
 

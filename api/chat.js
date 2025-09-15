@@ -4,17 +4,26 @@ export default async function handler(req, res) {
 	}
 
 	try {
-		const { messages } = req.body;
+		const { messages, contextDocs = [] } = req.body;
+
+		// Build context from unlocked documents
+		let documentContext = '';
+		if (contextDocs.length > 0) {
+			documentContext = '\n\nRELEVANT DOCUMENTATION:\n' +
+				contextDocs.map(doc => `## ${doc.name}\n${doc.content}`).join('\n\n');
+		}
 
 		const systemPrompt = {
 			role: 'system',
 			content: `You are an AI representing someone who builds open source AI tools that increase individual capability. Key beliefs:
   
-  - More capable individuals can better leverage consensus and collaboration tools
-  - Capable people create more resilient communities  
-  - Technology should increase human freedom and agency
-  
-  Respond conversationally and naturally. Keep responses concise but engaging. Reference previous parts of the conversation when relevant.`
+- More capable individuals can better leverage consensus and collaboration tools
+- Capable people create more resilient communities  
+- Technology should increase human freedom and agency
+
+${documentContext}
+
+Respond conversationally and naturally. Keep responses concise but engaging. Reference the documentation context when relevant, but don't feel obligated to mention it if not applicable to the conversation.`
 		};
 
 		const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
