@@ -147,11 +147,26 @@ body {
 	color: #1a1a1a;
 	cursor: pointer;
 	transition: all 0.3s;
+	box-shadow: 0 4px 15px rgba(78, 205, 196, 0.3);
 }
 
 .mic-btn:hover {
 	background: #45b7d1;
 	transform: scale(1.05);
+	box-shadow: 0 6px 20px rgba(78, 205, 196, 0.4);
+}
+
+/* Floating mic button styles (when positioned fixed) */
+.mic-btn:where([style*="position: fixed"]) {
+	padding: 1rem;
+	border-radius: 50%;
+	width: 60px;
+	height: 60px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 1.5rem;
+	z-index: 1000;
 }
 
 .chat-container {
@@ -159,6 +174,8 @@ body {
 	display: none;
 	flex-direction: column;
 	padding: 1rem;
+	padding-bottom: 100px;
+	/* Space for floating button */
 }
 
 .chat-container.active {
@@ -177,6 +194,19 @@ body {
 	padding: 1rem;
 	border-radius: 1rem;
 	max-width: 80%;
+	animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
 }
 
 .message.user {
@@ -196,6 +226,7 @@ body {
 	text-align: center;
 	color: #ccc;
 	border-top: 1px solid #333;
+	font-style: italic;
 }
 
 /* Responsive */
@@ -212,5 +243,15 @@ body {
 	.chat-panel {
 		width: 100%;
 		height: 60%;
+	}
+
+	.chat-container {
+		padding-bottom: 120px;
+		/* More space on mobile */
+	}
+
+	.mic-btn:where([style*="position: fixed"]) {
+		bottom: 1rem;
+		right: 1rem;
 	}
 }
