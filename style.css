@@ -1,8 +1,4 @@
-* {
-	margin: 0;
-	padding: 0;
-	box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
 	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
@@ -12,12 +8,8 @@ body {
 	overflow: hidden;
 }
 
-.app-container {
-	display: flex;
-	height: 100vh;
-}
+.app-container { display: flex; height: 100vh; }
 
-/* Documentation Panel */
 .docs-panel {
 	width: 40%;
 	background: #2a2a2a;
@@ -34,40 +26,16 @@ body {
 	align-items: center;
 }
 
-.docs-header h2 {
-	color: #4ecdc4;
-	font-size: 1.2rem;
-}
+.docs-header h2 { color: #4ecdc4; }
+.unlock-counter { font-size: 0.9rem; color: #888; }
+.docs-content { flex: 1; overflow-y: auto; }
 
-.unlock-counter {
-	font-size: 0.9rem;
-	color: #888;
-}
-
-.docs-content {
-	flex: 1;
-	overflow-y: auto;
-	padding: 0;
-}
-
-.doc-section {
-	border-bottom: 1px solid #333;
-	transition: all 0.3s ease;
-}
-
-.doc-section.newly-unlocked {
-	background: linear-gradient(90deg, #4ecdc4, transparent);
-	animation: unlockGlow 2s ease-out;
-}
+.doc-section { border-bottom: 1px solid #333; }
+.doc-section.newly-unlocked { animation: unlockGlow 2s ease-out; }
 
 @keyframes unlockGlow {
-	0% {
-		box-shadow: 0 0 20px rgba(78, 205, 196, 0.5);
-	}
-
-	100% {
-		box-shadow: none;
-	}
+	0% { box-shadow: 0 0 20px rgba(78, 205, 196, 0.5); }
+	100% { box-shadow: none; }
 }
 
 .doc-header {
@@ -78,65 +46,14 @@ body {
 	align-items: center;
 }
 
-.doc-header h3 {
-	color: #4ecdc4;
-	font-size: 1rem;
-}
+.doc-header h3 { color: #4ecdc4; }
+.doc-toggle { color: #888; }
+.doc-content { padding: 0 1.5rem 1rem; line-height: 1.6; color: #ccc; }
+.doc-content h2, .doc-content h3 { color: #fff; margin: 1rem 0 0.5rem; }
+.doc-content p { margin-bottom: 0.8rem; }
 
-.doc-toggle {
-	color: #888;
-	font-size: 0.8rem;
-}
-
-.doc-content {
-	padding: 0 1.5rem 1rem;
-	line-height: 1.6;
-	color: #ccc;
-}
-
-.doc-content h2 {
-	color: #fff;
-	font-size: 1rem;
-	margin: 1rem 0 0.5rem;
-}
-
-.doc-content h3 {
-	color: #ddd;
-	font-size: 0.9rem;
-	margin: 0.8rem 0 0.4rem;
-}
-
-.doc-content p {
-	margin-bottom: 0.8rem;
-	font-size: 0.9rem;
-}
-
-/* Chat Panel */
-.chat-panel {
-	width: 60%;
-	display: flex;
-	flex-direction: column;
-	position: relative;
-}
-
-.chat-intro {
-	padding: 2rem;
-	text-align: center;
-	background: #1a1a1a;
-	border-bottom: 1px solid #333;
-}
-
-.chat-intro h1 {
-	font-size: 1.8rem;
-	margin-bottom: 1rem;
-	color: #4ecdc4;
-}
-
-.chat-intro p {
-	font-size: 1.1rem;
-	margin-bottom: 1.5rem;
-	color: #ccc;
-}
+.chat-panel { width: 60%; display: flex; flex-direction: column; }
+.chat-intro { padding: 2rem; text-align: center; border-bottom: 1px solid #333; }
 
 .mic-btn {
 	background: #4ecdc4;
@@ -147,47 +64,19 @@ body {
 	color: #1a1a1a;
 	cursor: pointer;
 	transition: all 0.3s;
-	box-shadow: 0 4px 15px rgba(78, 205, 196, 0.3);
 }
 
-.mic-btn:hover {
-	background: #45b7d1;
-	transform: scale(1.05);
-	box-shadow: 0 6px 20px rgba(78, 205, 196, 0.4);
+.mic-btn:hover { background: #45b7d1; transform: scale(1.05); }
+.mic-btn.listening { background: #ff6b6b; animation: pulse 1.5s ease-in-out infinite; }
+
+@keyframes pulse {
+	0%, 100% { box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3); }
+	50% { box-shadow: 0 6px 25px rgba(255, 107, 107, 0.6); }
 }
 
-/* Floating mic button styles (when positioned fixed) */
-.mic-btn:where([style*="position: fixed"]) {
-	padding: 1rem;
-	border-radius: 50%;
-	width: 60px;
-	height: 60px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 1.5rem;
-	z-index: 1000;
-}
-
-.chat-container {
-	flex: 1;
-	display: none;
-	flex-direction: column;
-	padding: 1rem;
-	padding-bottom: 100px;
-	/* Space for floating button */
-}
-
-.chat-container.active {
-	display: flex;
-}
-
-.chat-messages {
-	flex: 1;
-	overflow-y: auto;
-	padding: 1rem 0;
-	min-height: 0;
-}
+.chat-container { flex: 1; display: none; flex-direction: column; padding: 1rem; }
+.chat-container.active { display: flex; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 1rem 0; }
 
 .message {
 	margin: 1rem 0;
@@ -197,61 +86,16 @@ body {
 	animation: fadeIn 0.3s ease-out;
 }
 
-@keyframes fadeIn {
-	from {
-		opacity: 0;
-		transform: translateY(10px);
-	}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
 
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
-}
+.message.user { background: #4ecdc4; color: #1a1a1a; margin-left: auto; text-align: right; }
+.message.ai { background: #333; }
+.status { padding: 1rem; text-align: center; color: #ccc; border-top: 1px solid #333; font-style: italic; }
 
-.message.user {
-	background: #4ecdc4;
-	color: #1a1a1a;
-	margin-left: auto;
-	text-align: right;
-}
-
-.message.ai {
-	background: #333;
-	color: #fff;
-}
-
-.status {
-	padding: 1rem;
-	text-align: center;
-	color: #ccc;
-	border-top: 1px solid #333;
-	font-style: italic;
-}
-
-/* Responsive */
 @media (max-width: 768px) {
-	.app-container {
-		flex-direction: column;
-	}
-
-	.docs-panel {
-		width: 100%;
-		height: 40%;
-	}
-
-	.chat-panel {
-		width: 100%;
-		height: 60%;
-	}
-
-	.chat-container {
-		padding-bottom: 120px;
-		/* More space on mobile */
-	}
-
-	.mic-btn:where([style*="position: fixed"]) {
-		bottom: 1rem;
-		right: 1rem;
-	}
+	.app-container { flex-direction: column; }
+	.docs-panel { width: 100%; height: 40%; }
+	.chat-panel { width: 100%; height: 60%; }
 }

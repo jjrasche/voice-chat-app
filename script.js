@@ -4,22 +4,26 @@ class VoiceChat {
 		this.isListening = false;
 		this.currentTranscript = '';
 		this.conversationHistory = [];
-
-		// Documentation system
 		this.availableDocs = ['beliefs', 'ai-native', 'projects', 'community', 'tools'];
-		this.unlockedDocs = ['beliefs']; // Start with beliefs unlocked
+		this.unlockedDocs = ['beliefs'];
 		this.loadedDocs = new Map();
 		this.collapsedDocs = new Set();
+		this.unlockRules = {
+			'ai-native': ['ai native', 'ai tools', 'productivity', 'workflow'],
+			'projects': ['project', 'building', 'cognition', 'extension'],
+			'community': ['community', 'collaboration', 'consensus', 'collective'],
+			'tools': ['tools', 'software', 'development', 'open source']
+		};
 
 		this.initElements();
 		this.initSpeech();
 		this.bindEvents();
 		this.loadInitialDocs();
+		this.addMessage("Hi, I'm building AI tools that increase individual capability. Browse the knowledge base, then let's talk about how we can 10X your productivity!", 'ai');
 	}
 
 	initElements() {
 		this.startBtn = document.getElementById('startBtn');
-		this.chatIntro = document.querySelector('.chat-intro');
 		this.chatContainer = document.getElementById('chatContainer');
 		this.messages = document.getElementById('messages');
 		this.status = document.getElementById('status');
@@ -29,10 +33,7 @@ class VoiceChat {
 	}
 
 	async loadInitialDocs() {
-		// Set total count
 		this.totalDocs.textContent = this.availableDocs.length;
-
-		// Load and display initial doc (beliefs)
 		await this.loadAndDisplayDoc('beliefs');
 		this.updateUnlockCounter();
 	}
@@ -41,20 +42,15 @@ class VoiceChat {
 		try {
 			const response = await fetch(`/api/docs?doc=${docName}`);
 			const docData = await response.json();
-
 			this.loadedDocs.set(docName, docData);
 			this.renderDoc(docName, docData, isNewlyUnlocked);
-
-		} catch (error) {
-			console.error(`Failed to load ${docName}:`, error);
-		}
+		} catch (error) { console.error(`Failed to load ${docName}:`, error); }
 	}
 
 	renderDoc(docName, docData, isNewlyUnlocked = false) {
 		const docSection = document.createElement('div');
 		docSection.className = `doc-section${isNewlyUnlocked ? ' newly-unlocked' : ''}`;
 		docSection.id = `doc-${docName}`;
-
 		const isCollapsed = this.collapsedDocs.has(docName);
 
 		docSection.innerHTML = `
@@ -68,21 +64,16 @@ class VoiceChat {
 		`;
 
 		this.docsContent.appendChild(docSection);
-
-		// Remove glow animation after it completes
-		if (isNewlyUnlocked) {
-			setTimeout(() => {
-				docSection.classList.remove('newly-unlocked');
-			}, 2000);
-		}
+		if (isNewlyUnlocked) setTimeout(() => docSection.classList.remove('newly-unlocked'), 2000);
 	}
 
 	toggleDoc(docName) {
 		const docSection = document.getElementById(`doc-${docName}`);
 		const content = docSection.querySelector('.doc-content');
 		const toggle = docSection.querySelector('.doc-toggle');
+		const isCollapsed = this.collapsedDocs.has(docName);
 
-		if (this.collapsedDocs.has(docName)) {
+		if (isCollapsed) {
 			this.collapsedDocs.delete(docName);
 			content.style.display = 'block';
 			toggle.textContent = '▼';
@@ -93,66 +84,33 @@ class VoiceChat {
 		}
 	}
 
-	updateUnlockCounter() {
-		this.unlockedCount.textContent = this.unlockedDocs.length;
-	}
+	updateUnlockCounter = () => this.unlockedCount.textContent = this.unlockedDocs.length;
 
 	async checkForNewUnlocks(userMessage, aiResponse) {
-		// Simple keyword-based unlocking (can be enhanced later)
-		const unlockRules = {
-			'ai-native': ['ai native', 'ai tools', 'productivity', 'workflow'],
-			'projects': ['project', 'building', 'cognition', 'extension'],
-			'community': ['community', 'collaboration', 'consensus', 'collective'],
-			'tools': ['tools', 'software', 'development', 'open source']
-		};
-
 		const conversationText = (userMessage + ' ' + aiResponse).toLowerCase();
-		const newUnlocks = [];
+		const newUnlocks = Object.entries(this.unlockRules)
+			.filter(([docName, keywords]) =>
+				!this.unlockedDocs.includes(docName) &&
+				keywords.some(keyword => conversationText.includes(keyword))
+			)
+			.map(([docName]) => docName);
 
-		for (const [docName, keywords] of Object.entries(unlockRules)) {
-			if (!this.unlockedDocs.includes(docName)) {
-				const hasKeyword = keywords.some(keyword => conversationText.includes(keyword));
-				if (hasKeyword) {
-					newUnlocks.push(docName);
-				}
-			}
-		}
-
-		// Unlock new documents with animation
-		for (const docName of newUnlocks) {
-			await this.unlockDocument(docName);
-		}
+		for (const docName of newUnlocks) await this.unlockDocument(docName);
 	}
 
 	async unlockDocument(docName) {
 		if (this.unlockedDocs.includes(docName)) return;
-
 		this.unlockedDocs.push(docName);
 		await this.loadAndDisplayDoc(docName, true);
 		this.updateUnlockCounter();
-
-		// Show a brief notification
 		this.showUnlockNotification(docName);
 	}
 
-	showUnlockNotification(docName) {
+	showUnlockNotification = (docName) => {
 		const notification = document.createElement('div');
-		notification.style.cssText = `
-			position: fixed;
-			top: 20px;
-			right: 20px;
-			background: #4ecdc4;
-			color: #1a1a1a;
-			padding: 1rem;
-			border-radius: 8px;
-			font-weight: 500;
-			z-index: 1000;
-			animation: slideIn 0.3s ease-out;
-		`;
+		notification.style.cssText = `position: fixed; top: 20px; right: 20px; background: #4ecdc4; color: #1a1a1a; padding: 1rem; border-radius: 8px; font-weight: 500; z-index: 1000; animation: slideIn 0.3s ease-out;`;
 		notification.textContent = `🔓 Unlocked: ${docName}`;
-
 		document.body.appendChild(notification);
-
 		setTimeout(() => {
 			notification.style.animation = 'slideOut 0.3s ease-in';
 			setTimeout(() => notification.remove(), 300);
@@ -164,33 +122,49 @@ class VoiceChat {
 			alert('Speech recognition not supported');
 			return;
 		}
-
 		this.recognition = new webkitSpeechRecognition();
-		this.recognition.continuous = true;
-		this.recognition.interimResults = true;
-		this.recognition.lang = 'en-US';
-
-		this.recognition.onstart = () => this.onSpeechStart();
-		this.recognition.onresult = (e) => this.onSpeechResult(e);
-		this.recognition.onend = () => this.onSpeechEnd();
-		this.recognition.onerror = (e) => this.onSpeechError(e);
+		Object.assign(this.recognition, {
+			continuous: true,
+			interimResults: true,
+			lang: 'en-US',
+			onstart: () => this.updateStatus('Listening...'),
+			onresult: (e) => this.onSpeechResult(e),
+			onend: () => this.updateStatus('Click to start listening...'),
+			onerror: (e) => {
+				console.error('Speech error:', e.error);
+				this.updateStatus('Speech error - trying again...');
+				this.startListening();
+			}
+		});
 	}
 
-	bindEvents() {
-		this.startBtn.onclick = () => this.startChat();
+	onSpeechResult = (event) => {
+		let interimTranscript = '', finalTranscript = '';
+		for (let i = event.resultIndex; i < event.results.length; i++) {
+			const transcript = event.results[i][0].transcript;
+			if (event.results[i].isFinal) finalTranscript += transcript;
+			else interimTranscript += transcript;
+		}
+		this.updateStatus(`Speaking: "${interimTranscript}"`);
+		if (finalTranscript) this.processFinalTranscript(finalTranscript);
 	}
 
-	startChat() {
-		this.chatIntro.style.display = 'none';
-		this.chatContainer.classList.add('active');
-		this.startListening();
+	processFinalTranscript = (transcript) => {
+		if (!transcript.trim()) return;
+		this.addMessage(transcript, 'user');
+		this.stopListening();
+		this.updateStatus('Thinking...');
+		this.sendToAI(transcript);
 	}
+
+	bindEvents = () => this.startBtn.onclick = () => this.toggleListening();
+	toggleListening = () => this.isListening ? this.stopListening() : this.startListening();
 
 	startListening() {
 		if (this.isListening) return;
-
 		this.isListening = true;
-		this.currentTranscript = '';
+		this.startBtn.textContent = '⏹️ Stop';
+		this.startBtn.classList.add('listening');
 		this.updateStatus('Listening...');
 		this.recognition.start();
 	}
@@ -198,91 +172,38 @@ class VoiceChat {
 	stopListening() {
 		if (!this.isListening) return;
 		this.isListening = false;
+		this.startBtn.textContent = '🎤 Listen';
+		this.startBtn.classList.remove('listening');
+		this.updateStatus('Click to start listening...');
 		this.recognition.stop();
-	}
-
-	onSpeechStart() {
-		this.updateStatus('🎤 Listening...');
-	}
-
-	onSpeechResult(event) {
-		let interimTranscript = '';
-		let finalTranscript = '';
-
-		for (let i = event.resultIndex; i < event.results.length; i++) {
-			const transcript = event.results[i][0].transcript;
-			if (event.results[i].isFinal) {
-				finalTranscript += transcript;
-			} else {
-				interimTranscript += transcript;
-			}
-		}
-
-		this.currentTranscript = finalTranscript;
-		this.updateStatus(`Speaking: "${interimTranscript}"`);
-
-		if (finalTranscript) {
-			this.processFinalTranscript(finalTranscript);
-		}
-	}
-
-	processFinalTranscript(transcript) {
-		if (!transcript.trim()) return;
-
-		this.addMessage(transcript, 'user');
-		this.stopListening();
-		this.updateStatus('Thinking...');
-		this.sendToAI(transcript);
 	}
 
 	async sendToAI(transcript) {
 		this.conversationHistory.push({ role: 'user', content: transcript });
-
 		try {
-			// Get relevant docs for context
-			const contextDocs = this.getRelevantDocs(transcript);
-
 			const response = await fetch('/api/chat', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					messages: this.conversationHistory,
-					contextDocs: contextDocs
+					contextDocs: this.getRelevantDocs()
 				})
 			});
-
-			const data = await response.json();
-			const aiResponse = data.response;
-
+			const { response: aiResponse } = await response.json();
 			this.conversationHistory.push({ role: 'assistant', content: aiResponse });
 			this.addMessage(aiResponse, 'ai');
-
-			// Check for new document unlocks
 			await this.checkForNewUnlocks(transcript, aiResponse);
-
 		} catch (error) {
 			this.addMessage('Sorry, something went wrong!', 'ai');
 		}
-
-		this.startListening();
+		this.updateStatus('Click to start listening...');
 	}
 
-	getRelevantDocs(transcript) {
-		// Return content of unlocked docs for AI context
-		const relevantDocs = [];
+	getRelevantDocs = () => this.unlockedDocs
+		.filter(name => this.loadedDocs.has(name))
+		.map(name => ({ name, content: this.loadedDocs.get(name).content }));
 
-		for (const docName of this.unlockedDocs) {
-			if (this.loadedDocs.has(docName)) {
-				const doc = this.loadedDocs.get(docName);
-				relevantDocs.push({
-					name: docName,
-					content: doc.content
-				});
-			}
-		}
-
-		return relevantDocs;
-	}
+	updateStatus = (text) => this.status.textContent = text;
 
 	addMessage(text, type) {
 		const messageDiv = document.createElement('div');
@@ -291,37 +212,6 @@ class VoiceChat {
 		this.messages.appendChild(messageDiv);
 		this.messages.scrollTop = this.messages.scrollHeight;
 	}
-
-	onSpeechEnd() {
-		if (this.isListening) {
-			this.recognition.start();
-		}
-	}
-
-	onSpeechError(event) {
-		console.error('Speech error:', event.error);
-		this.updateStatus('Speech error - trying again...');
-		this.startListening();
-	}
-
-	updateStatus(text) {
-		this.status.textContent = text;
-	}
 }
 
-// Global instance for onclick handlers
-const voiceChat = new VoiceChat();
-
-// Add CSS animations for notifications
-const style = document.createElement('style');
-style.textContent = `
-	@keyframes slideIn {
-		from { transform: translateX(100%); opacity: 0; }
-		to { transform: translateX(0); opacity: 1; }
-	}
-	@keyframes slideOut {
-		from { transform: translateX(0); opacity: 1; }
-		to { transform: translateX(100%); opacity: 0; }
-	}
-`;
-document.head.appendChild(style);
+addEventListener('DOMContentLoaded', () => voiceChat = new VoiceChat());
