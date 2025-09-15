@@ -98,12 +98,30 @@ class VoiceChat {
 	}
 
 	async sendToAI(transcript) {
-		// For now, just echo back - we'll replace with real backend
-		setTimeout(() => {
-			const response = `I heard you say: "${transcript}". This is where the AI response will go!`;
-			this.addMessage(response, 'ai');
-			this.startListening(); // Resume listening
-		}, 1000);
+		// Add user message to history
+		this.conversationHistory.push({ role: 'user', content: transcript });
+
+		try {
+			const response = await fetch('/api/chat', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ messages: this.conversationHistory })
+			});
+
+			const data = await response.json();
+			const aiResponse = data.response;
+
+			// Add AI response to history
+			this.conversationHistory.push({ role: 'assistant', content: aiResponse });
+
+			// Show in chat
+			this.addMessage(aiResponse, 'ai');
+
+		} catch (error) {
+			this.addMessage('Sorry, something went wrong!', 'ai');
+		}
+
+		this.startListening(); // Resume listening
 	}
 
 	addMessage(text, type) {
