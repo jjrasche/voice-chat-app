@@ -354,8 +354,9 @@ class VoiceChat {
 }
 
 // Global instance for onclick handlers
-const voiceChat = new VoiceChat();
-
+document.addEventListener('DOMContentLoaded', () => {
+	const voiceChat = new VoiceChat();
+});
 // Add CSS animations for notifications
 const style = document.createElement('style');
 style.textContent = `
