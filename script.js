@@ -4,8 +4,6 @@ class VoiceChat {
 		this.isListening = false;
 		this.currentTranscript = '';
 		this.conversationHistory = [];
-		this.pauseTimer = null;
-		this.pauseThreshold = 5000; // 5 seconds
 
 		// Documentation system
 		this.availableDocs = ['beliefs', 'ai-native', 'projects', 'community', 'tools'];
@@ -17,24 +15,17 @@ class VoiceChat {
 		this.initSpeech();
 		this.bindEvents();
 		this.loadInitialDocs();
-		this.initializeChat();
 	}
 
 	initElements() {
-		this.micBtn = document.getElementById('micBtn');
+		this.startBtn = document.getElementById('startBtn');
+		this.chatIntro = document.querySelector('.chat-intro');
 		this.chatContainer = document.getElementById('chatContainer');
 		this.messages = document.getElementById('messages');
 		this.status = document.getElementById('status');
 		this.docsContent = document.getElementById('docsContent');
 		this.unlockedCount = document.getElementById('unlockedCount');
 		this.totalDocs = document.getElementById('totalDocs');
-	}
-
-	initializeChat() {
-		// Add initial AI greeting
-		const greeting = "Hey! I'm here to talk about building AI tools that give people 10X capability. What interests you most about AI-native workflows?";
-		this.addMessage(greeting, 'ai');
-		this.updateStatus('Click the microphone to respond');
 	}
 
 	async loadInitialDocs() {
@@ -186,15 +177,13 @@ class VoiceChat {
 	}
 
 	bindEvents() {
-		this.micBtn.onclick = () => this.toggleListening();
+		this.startBtn.onclick = () => this.startChat();
 	}
 
-	toggleListening() {
-		if (this.isListening) {
-			this.stopListening();
-		} else {
-			this.startListening();
-		}
+	startChat() {
+		this.chatIntro.style.display = 'none';
+		this.chatContainer.classList.add('active');
+		this.startListening();
 	}
 
 	startListening() {
@@ -202,40 +191,18 @@ class VoiceChat {
 
 		this.isListening = true;
 		this.currentTranscript = '';
-		this.clearPauseTimer();
-		this.updateStatus('🎤 Listening... speak now');
-		this.micBtn.textContent = '⏹️';
+		this.updateStatus('Listening...');
 		this.recognition.start();
 	}
 
 	stopListening() {
 		if (!this.isListening) return;
-
 		this.isListening = false;
-		this.clearPauseTimer();
 		this.recognition.stop();
-		this.micBtn.textContent = '🎤';
-		this.updateStatus('Click microphone to speak');
-	}
-
-	clearPauseTimer() {
-		if (this.pauseTimer) {
-			clearTimeout(this.pauseTimer);
-			this.pauseTimer = null;
-		}
-	}
-
-	startPauseTimer() {
-		this.clearPauseTimer();
-		this.pauseTimer = setTimeout(() => {
-			if (this.currentTranscript.trim()) {
-				this.processFinalTranscript(this.currentTranscript);
-			}
-		}, this.pauseThreshold);
 	}
 
 	onSpeechStart() {
-		this.updateStatus('🎤 Listening... speak now');
+		this.updateStatus('🎤 Listening...');
 	}
 
 	onSpeechResult(event) {
@@ -251,18 +218,11 @@ class VoiceChat {
 			}
 		}
 
-		// Update current transcript with final results
+		this.currentTranscript = finalTranscript;
+		this.updateStatus(`Speaking: "${interimTranscript}"`);
+
 		if (finalTranscript) {
-			this.currentTranscript += finalTranscript;
-		}
-
-		// Show what's being spoken (interim + accumulated final)
-		const displayText = this.currentTranscript + interimTranscript;
-		this.updateStatus(`Speaking: "${displayText}"`);
-
-		// Reset pause timer on any speech activity
-		if (interimTranscript.trim() || finalTranscript.trim()) {
-			this.startPauseTimer();
+			this.processFinalTranscript(finalTranscript);
 		}
 	}
 
@@ -271,7 +231,7 @@ class VoiceChat {
 
 		this.addMessage(transcript, 'user');
 		this.stopListening();
-		this.updateStatus('🤔 Thinking...');
+		this.updateStatus('Thinking...');
 		this.sendToAI(transcript);
 	}
 
@@ -304,7 +264,7 @@ class VoiceChat {
 			this.addMessage('Sorry, something went wrong!', 'ai');
 		}
 
-		this.updateStatus('Click microphone to continue conversation');
+		this.startListening();
 	}
 
 	getRelevantDocs(transcript) {
@@ -333,15 +293,15 @@ class VoiceChat {
 	}
 
 	onSpeechEnd() {
-		// Don't auto-restart - user must click to re-engage
-		this.isListening = false;
-		this.micBtn.textContent = '🎤';
+		if (this.isListening) {
+			this.recognition.start();
+		}
 	}
 
 	onSpeechError(event) {
 		console.error('Speech error:', event.error);
-		this.updateStatus('Speech error - click microphone to try again');
-		this.stopListening();
+		this.updateStatus('Speech error - trying again...');
+		this.startListening();
 	}
 
 	updateStatus(text) {
