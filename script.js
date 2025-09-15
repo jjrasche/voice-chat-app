@@ -17,6 +17,11 @@ class VoiceChat {
 			'tools': ['tools', 'software', 'development', 'open source']
 		};
 
+		// Mobile speech recognition enhancements
+		this.isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+		this.restartAttempts = 0;
+		this.maxRestartAttempts = 50;
+
 		this.initElements();
 		this.initSpeech();
 		this.bindEvents();
@@ -127,8 +132,6 @@ class VoiceChat {
 			this.contactStatus.textContent = '✅ Contact saved! Thanks for connecting';
 			this.emailInput.style.display = 'none';
 			this.submitContact.style.display = 'none';
-
-			// Save email to localStorage
 			localStorage.setItem('userEmail', email);
 		} catch (error) {
 			alert('Failed to save contact. Please try again.');
@@ -188,63 +191,122 @@ class VoiceChat {
 		}, 3000);
 	}
 
+	// ENHANCED MOBILE SPEECH RECOGNITION
 	initSpeech() {
 		if (!('webkitSpeechRecognition' in window)) {
 			alert('Speech recognition not supported');
 			return;
 		}
-		this.recognition = new webkitSpeechRecognition();
-		this.isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
+		this.recognition = new webkitSpeechRecognition();
+
+		// Mobile-optimized settings
 		Object.assign(this.recognition, {
-			continuous: !this.isMobile, // Mobile works better with false
+			continuous: false, // CRITICAL: false for mobile reliability  
 			interimResults: true,
 			lang: 'en-US',
-			onstart: () => this.updateStatus('Listening...'),
-			onresult: (e) => this.onSpeechResult(e),
-			onend: () => {
-				if (this.isListening && !this.isMobile) {
-					// Auto-restart on desktop only
-					setTimeout(() => this.recognition.start(), 100);
-				} else {
-					this.updateStatus('Click to start listening...');
-				}
-			},
-			onerror: (e) => {
-				console.error('Speech error:', e.error);
-				if (e.error === 'no-speech' && this.isListening) {
-					// Restart on no-speech error
-					setTimeout(() => this.recognition.start(), 500);
-				} else {
-					this.updateStatus('Speech error - click to try again...');
-				}
-			}
+			maxAlternatives: 1
 		});
+
+		// Handle successful start
+		this.recognition.onstart = () => {
+			this.restartAttempts = 0; // Reset on successful start
+			this.updateStatus('Listening...');
+		};
+
+		// Main result handler
+		this.recognition.onresult = (e) => this.onSpeechResult(e);
+
+		// AUTO-RESTART PATTERN - The key to mobile speech recognition
+		this.recognition.onend = () => {
+			if (this.isListening && this.restartAttempts < this.maxRestartAttempts) {
+				// Small delay prevents rapid restart loops
+				setTimeout(() => {
+					if (this.isListening) { // Check again after delay
+						try {
+							this.restartAttempts++;
+							this.recognition.start();
+						} catch (error) {
+							console.error('Restart failed:', error);
+							this.stopListening();
+						}
+					}
+				}, 100);
+			} else {
+				this.stopListening();
+			}
+		};
+
+		// Enhanced error handling for mobile
+		this.recognition.onerror = (e) => {
+			console.error('Speech error:', e.error);
+
+			switch (e.error) {
+				case 'no-speech':
+					// Normal timeout - auto-restart will handle
+					break;
+				case 'aborted':
+					// User stopped - don't restart
+					this.stopListening();
+					break;
+				case 'network':
+					this.updateStatus('Network error - check connection');
+					this.stopListening();
+					break;
+				case 'not-allowed':
+					this.updateStatus('Microphone permission denied');
+					this.stopListening();
+					break;
+				default:
+					// Other errors - try restart after delay
+					if (this.isListening) {
+						setTimeout(() => {
+							if (this.isListening && this.restartAttempts < this.maxRestartAttempts) {
+								try {
+									this.recognition.start();
+								} catch (err) {
+									this.stopListening();
+								}
+							}
+						}, 1000);
+					}
+			}
+		};
 	}
 
+	// Enhanced result processing for mobile
 	onSpeechResult = (event) => {
 		let interimTranscript = '';
+		let finalTranscript = '';
+
 		for (let i = event.resultIndex; i < event.results.length; i++) {
 			const transcript = event.results[i][0].transcript;
 			if (event.results[i].isFinal) {
-				this.accumulatedTranscript += transcript;
-				this.resetPauseTimer();
+				finalTranscript += transcript;
 			} else {
 				interimTranscript += transcript;
 			}
 		}
-		this.updateStatus(`Speaking: "${this.accumulatedTranscript + interimTranscript}"`);
+
+		// On mobile, process final results immediately
+		if (finalTranscript.trim()) {
+			this.accumulatedTranscript += finalTranscript;
+			// Mobile users expect faster response - shorter pause
+			this.resetPauseTimer(this.isMobile ? 2000 : 5000);
+		}
+
+		// Show current progress
+		const displayText = this.accumulatedTranscript + interimTranscript;
+		this.updateStatus(`Speaking: "${displayText}"`);
 	}
 
-	resetPauseTimer = () => {
+	// Mobile-optimized pause timer
+	resetPauseTimer = (delay = 5000) => {
 		clearTimeout(this.pauseTimer);
-		this.startCountdown();
-	}
 
-	startCountdown = () => {
-		let seconds = 5;
+		let seconds = Math.ceil(delay / 1000);
 		const countdownTick = () => {
-			this.updateStatus(`Sending in ${seconds}... ${'●'.repeat(6 - seconds)}`);
+			this.updateStatus(`Sending in ${seconds}... ${'●'.repeat(Math.max(0, 6 - seconds))}`);
 			seconds--;
 			if (seconds > 0) {
 				this.pauseTimer = setTimeout(countdownTick, 1000);
@@ -258,7 +320,7 @@ class VoiceChat {
 	handlePauseComplete = () => {
 		if (!this.accumulatedTranscript.trim()) return;
 		const transcript = this.accumulatedTranscript;
-		this.accumulatedTranscript = ''; // Clear BEFORE processing to prevent double-send
+		this.accumulatedTranscript = '';
 		this.processFinalTranscript(transcript);
 	}
 
@@ -274,36 +336,46 @@ class VoiceChat {
 		this.startBtn.onclick = () => this.toggleListening();
 		this.submitContact.onclick = () => this.handleContactSubmit();
 	}
+
 	toggleListening = () => this.isListening ? this.stopListening() : this.startListening();
 
+	// Enhanced start with mobile safeguards
 	startListening() {
 		if (this.isListening) return;
+
 		this.isListening = true;
 		this.accumulatedTranscript = '';
+		this.restartAttempts = 0;
 		this.startBtn.textContent = '⏹️ Stop';
 		this.startBtn.classList.add('listening');
-		this.updateStatus('Listening...');
 
 		try {
 			this.recognition.start();
 		} catch (error) {
 			console.error('Failed to start recognition:', error);
-			this.isListening = false;
-			this.startBtn.textContent = '🎤 Listen';
-			this.startBtn.classList.remove('listening');
+			this.stopListening();
 		}
 	}
 
+	// Enhanced stop with mobile cleanup
 	stopListening() {
 		if (!this.isListening) return;
+
 		this.isListening = false;
+		this.restartAttempts = this.maxRestartAttempts; // Prevent auto-restart
 		clearTimeout(this.pauseTimer);
+
 		this.startBtn.textContent = '🎤 Listen';
 		this.startBtn.classList.remove('listening');
 		this.updateStatus('Click to start listening...');
-		this.recognition.stop();
 
-		// Send accumulated transcript if user manually stopped
+		try {
+			this.recognition.stop();
+		} catch (error) {
+			console.error('Stop error:', error);
+		}
+
+		// Process any accumulated speech
 		if (this.accumulatedTranscript.trim()) {
 			this.processFinalTranscript(this.accumulatedTranscript);
 			this.accumulatedTranscript = '';
