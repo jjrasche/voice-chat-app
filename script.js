@@ -21,6 +21,7 @@ class VoiceChat {
 		this.isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 		this.restartAttempts = 0;
 		this.maxRestartAttempts = 50;
+		this.lastInterimTime = 0; // Track when user last spoke
 
 		this.initElements();
 		this.initSpeech();
@@ -191,7 +192,7 @@ class VoiceChat {
 		}, 3000);
 	}
 
-	// ENHANCED MOBILE SPEECH RECOGNITION
+	// FIXED: Proper speech recognition with real pause detection
 	initSpeech() {
 		if (!('webkitSpeechRecognition' in window)) {
 			alert('Speech recognition not supported');
@@ -199,30 +200,28 @@ class VoiceChat {
 		}
 
 		this.recognition = new webkitSpeechRecognition();
+		this.lastInterimTime = 0; // Track when user last spoke
 
-		// Mobile-optimized settings
 		Object.assign(this.recognition, {
-			continuous: false, // CRITICAL: false for mobile reliability  
-			interimResults: true,
+			continuous: false, // Mobile requirement
+			interimResults: true, // CRITICAL for pause detection
 			lang: 'en-US',
 			maxAlternatives: 1
 		});
 
-		// Handle successful start
 		this.recognition.onstart = () => {
-			this.restartAttempts = 0; // Reset on successful start
+			this.restartAttempts = 0;
 			this.updateStatus('Listening...');
 		};
 
-		// Main result handler
+		// THE KEY: Use interim results to detect real speech pauses
 		this.recognition.onresult = (e) => this.onSpeechResult(e);
 
-		// AUTO-RESTART PATTERN - The key to mobile speech recognition
+		// Auto-restart pattern
 		this.recognition.onend = () => {
 			if (this.isListening && this.restartAttempts < this.maxRestartAttempts) {
-				// Small delay prevents rapid restart loops
 				setTimeout(() => {
-					if (this.isListening) { // Check again after delay
+					if (this.isListening) {
 						try {
 							this.restartAttempts++;
 							this.recognition.start();
@@ -237,17 +236,11 @@ class VoiceChat {
 			}
 		};
 
-		// Enhanced error handling for mobile
 		this.recognition.onerror = (e) => {
 			console.error('Speech error:', e.error);
-
 			switch (e.error) {
 				case 'no-speech':
-					// Normal timeout - auto-restart will handle
-					break;
 				case 'aborted':
-					// User stopped - don't restart
-					this.stopListening();
 					break;
 				case 'network':
 					this.updateStatus('Network error - check connection');
@@ -258,7 +251,6 @@ class VoiceChat {
 					this.stopListening();
 					break;
 				default:
-					// Other errors - try restart after delay
 					if (this.isListening) {
 						setTimeout(() => {
 							if (this.isListening && this.restartAttempts < this.maxRestartAttempts) {
@@ -274,11 +266,12 @@ class VoiceChat {
 		};
 	}
 
-	// Enhanced result processing for mobile
+	// FIXED: Proper pause detection using interim results
 	onSpeechResult = (event) => {
 		let interimTranscript = '';
 		let finalTranscript = '';
 
+		// Process all results from this event
 		for (let i = event.resultIndex; i < event.results.length; i++) {
 			const transcript = event.results[i][0].transcript;
 			if (event.results[i].isFinal) {
@@ -288,25 +281,47 @@ class VoiceChat {
 			}
 		}
 
-		// On mobile, process final results immediately
+		// Add any final results to accumulated transcript
 		if (finalTranscript.trim()) {
 			this.accumulatedTranscript += finalTranscript;
-			// Mobile users expect faster response - shorter pause
-			this.resetPauseTimer(this.isMobile ? 2000 : 5000);
 		}
 
-		// Show current progress
-		const displayText = this.accumulatedTranscript + interimTranscript;
-		this.updateStatus(`Speaking: "${displayText}"`);
+		// CRITICAL: If we have interim results, user is still speaking
+		if (interimTranscript.trim()) {
+			this.lastInterimTime = Date.now();
+			// Cancel any pending send timer - user is still talking!
+			clearTimeout(this.pauseTimer);
+			this.updateStatus(`Speaking: "${this.accumulatedTranscript + interimTranscript}"`);
+		} else if (this.accumulatedTranscript.trim()) {
+			// No interim results but we have accumulated text
+			// Start pause detection timer
+			this.startPauseDetection();
+		}
 	}
 
-	// Mobile-optimized pause timer
-	resetPauseTimer = (delay = 5000) => {
+	// NEW: Smart pause detection - same timing for all devices
+	startPauseDetection = () => {
 		clearTimeout(this.pauseTimer);
 
-		let seconds = Math.ceil(delay / 1000);
+		// Wait a bit to see if more interim results come in
+		this.pauseTimer = setTimeout(() => {
+			const timeSinceLastInterim = Date.now() - this.lastInterimTime;
+
+			// If no interim results for 1.5 seconds, start countdown
+			if (timeSinceLastInterim > 1500) {
+				this.startCountdown();
+			} else {
+				// Check again soon
+				this.startPauseDetection();
+			}
+		}, 500);
+	}
+
+	// Same countdown for all devices - no mobile confusion
+	startCountdown = () => {
+		let seconds = 3; // Consistent timing
 		const countdownTick = () => {
-			this.updateStatus(`Sending in ${seconds}... ${'●'.repeat(Math.max(0, 6 - seconds))}`);
+			this.updateStatus(`Sending in ${seconds}... ${'●'.repeat(4 - seconds)}`);
 			seconds--;
 			if (seconds > 0) {
 				this.pauseTimer = setTimeout(countdownTick, 1000);
@@ -339,13 +354,14 @@ class VoiceChat {
 
 	toggleListening = () => this.isListening ? this.stopListening() : this.startListening();
 
-	// Enhanced start with mobile safeguards
+	// Enhanced start with safeguards
 	startListening() {
 		if (this.isListening) return;
 
 		this.isListening = true;
 		this.accumulatedTranscript = '';
 		this.restartAttempts = 0;
+		this.lastInterimTime = 0;
 		this.startBtn.textContent = '⏹️ Stop';
 		this.startBtn.classList.add('listening');
 
@@ -357,7 +373,7 @@ class VoiceChat {
 		}
 	}
 
-	// Enhanced stop with mobile cleanup
+	// Enhanced stop with cleanup
 	stopListening() {
 		if (!this.isListening) return;
 
