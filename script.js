@@ -12,6 +12,12 @@ class VoiceChat {
 		this.engagementStarted = false;
 		this.engagementStopped = false;
 
+		// User tracking
+		this.chatId = null;
+		this.userName = null;
+		this.jobTitle = null;
+		this.userEmail = null;
+
 		// Mobile speech recognition enhancements
 		this.isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 		this.restartAttempts = 0;
@@ -85,11 +91,42 @@ class VoiceChat {
 		};
 
 		this.initElements();
+		this.initChatId();
 		this.initSpeech();
 		this.bindEvents();
 		this.loadConversationFromStorage();
 		this.loadInitialDocs();
 		this.startProgressiveEngagement();
+	}
+
+	showBrowserWarning() {
+		const warningDiv = document.createElement('div');
+		warningDiv.className = 'message ai';
+		warningDiv.style.background = '#ff6b6b';
+		warningDiv.innerHTML = `
+			<div>⚠️ Speech recognition is not supported in Firefox.</div>
+			<div style="font-size: 0.9rem; margin-top: 0.5rem;">Please use Chrome, Edge, or Safari for voice features.</div>
+		`;
+		this.messages.appendChild(warningDiv);
+		this.startBtn.style.display = 'none';
+	}
+
+	// Generate UUID for chat tracking
+	generateUUID() {
+		return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+			const r = Math.random() * 16 | 0;
+			const v = c === 'x' ? r : (r & 0x3 | 0x8);
+			return v.toString(16);
+		});
+	}
+
+	initChatId() {
+		this.chatId = localStorage.getItem('chatId');
+		if (!this.chatId) {
+			this.chatId = this.generateUUID();
+			localStorage.setItem('chatId', this.chatId);
+			console.log('New chat session:', this.chatId);
+		}
 	}
 
 	initElements() {
@@ -177,29 +214,20 @@ class VoiceChat {
 			return;
 		}
 
-		try {
-			await fetch('/api/contact', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					email,
-					chatHistory: this.conversationHistory,
-					unlockedDocs: this.unlockedDocs
-				})
-			});
+		this.userEmail = email;
+		localStorage.setItem('userEmail', email);
 
-			emailInput.parentElement.innerHTML = '<div style="color: #4ecdc4;">✅ Thanks! You\'re all set.</div>';
-			localStorage.setItem('userEmail', email);
-		} catch (error) {
-			alert('Failed to save email. Please try again.');
-		}
+		// Save to backend with conversation
+		await this.saveConversation();
+
+		emailInput.parentElement.innerHTML = '<div style="color: #4ecdc4;">✅ Thanks! You\'re all set.</div>';
 	}
 
 	startProgressiveEngagement = () => {
 		if (this.engagementStarted || this.engagementStopped) return;
 		this.engagementStarted = true;
 
-		// 1s delay + 1s typing + first message
+		// Modified to ask for name and role
 		setTimeout(() => {
 			if (this.engagementStopped) return;
 			this.showTypingIndicator();
@@ -207,9 +235,8 @@ class VoiceChat {
 			setTimeout(() => {
 				if (this.engagementStopped) return;
 				this.hideTypingIndicator();
-				this.addMessage("Hi! I'm curious about what you do and where AI native tools can help you most.", 'ai');
+				this.addMessage("Hi! I'm building AI-native tools to give people 10x capability. What's your name?", 'ai');
 
-				// 10s delay + 2s typing + second message
 				setTimeout(() => {
 					if (this.engagementStopped) return;
 					this.showTypingIndicator();
@@ -217,9 +244,8 @@ class VoiceChat {
 					setTimeout(() => {
 						if (this.engagementStopped) return;
 						this.hideTypingIndicator();
-						this.addMessage("Let's talk about it - who do you use as a thought partner now?", 'ai');
+						this.addMessage("What do you do for work? I'm curious where AI can help you most.", 'ai');
 
-						// 10s delay + 2s typing + final message
 						setTimeout(() => {
 							if (this.engagementStopped) return;
 							this.showTypingIndicator();
@@ -227,7 +253,7 @@ class VoiceChat {
 							setTimeout(() => {
 								if (this.engagementStopped) return;
 								this.hideTypingIndicator();
-								this.addMessage("Just press the microphone to start talking to me 🎤", 'ai');
+								this.addMessage("Just press and hold the microphone to start talking 🎤", 'ai');
 							}, 2000);
 						}, 10000);
 					}, 2000);
@@ -256,10 +282,41 @@ class VoiceChat {
 		if (indicator) indicator.remove();
 	}
 
+	async saveConversation() {
+		// Build messages with metadata
+		const messagesWithMetadata = this.conversationHistory.map(msg => ({
+			role: msg.role,
+			content: msg.content,
+			metadata: msg.role === 'user'
+				? { name: this.userName || null, job: this.jobTitle || null }
+				: { name: 'AI' },
+			timestamp: msg.timestamp || new Date().toISOString()
+		}));
+
+		try {
+			await fetch('/api/conversation', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					chatId: this.chatId,
+					email: this.userEmail,
+					userName: this.userName,
+					jobTitle: this.jobTitle,
+					messages: messagesWithMetadata,
+					unlockedDocs: this.unlockedDocs
+				})
+			});
+		} catch (error) {
+			console.error('Failed to save conversation:', error);
+		}
+	}
+
 	saveConversationToStorage = () => {
 		localStorage.setItem('chatHistory', JSON.stringify(this.conversationHistory));
 		localStorage.setItem('unlockedDocs', JSON.stringify(this.unlockedDocs));
 		localStorage.setItem('activeDoc', this.activeDoc);
+		localStorage.setItem('userName', this.userName || '');
+		localStorage.setItem('jobTitle', this.jobTitle || '');
 	}
 
 	loadConversationFromStorage = () => {
@@ -267,11 +324,12 @@ class VoiceChat {
 		const savedDocs = localStorage.getItem('unlockedDocs');
 		const savedActiveDoc = localStorage.getItem('activeDoc');
 		const savedEmail = localStorage.getItem('userEmail');
+		const savedName = localStorage.getItem('userName');
+		const savedJob = localStorage.getItem('jobTitle');
 
 		if (savedHistory) {
 			this.conversationHistory = JSON.parse(savedHistory);
-			this.engagementStopped = true; // Don't show intro if conversation exists
-			// Render saved messages (without adding to history again)
+			this.engagementStopped = true;
 			this.conversationHistory.forEach(msg =>
 				this.renderMessage(msg.content, msg.role === 'user' ? 'user' : 'ai')
 			);
@@ -280,7 +338,47 @@ class VoiceChat {
 		if (savedActiveDoc && this.unlockedDocs.includes(savedActiveDoc)) {
 			this.activeDoc = savedActiveDoc;
 		}
-		if (savedEmail) this.emailOffered = true;
+		if (savedEmail) {
+			this.userEmail = savedEmail;
+			this.emailOffered = true;
+		}
+		if (savedName) this.userName = savedName;
+		if (savedJob) this.jobTitle = savedJob;
+	}
+
+	resetEverything = () => {
+		// Show confirmation effect
+		this.startBtn.style.backgroundColor = '#ff3333';
+		setTimeout(() => {
+			this.startBtn.style.backgroundColor = '';
+		}, 500);
+
+		// Clear all state
+		localStorage.clear();
+
+		// Reset instance variables
+		this.conversationHistory = [];
+		this.unlockedDocs = ['beliefs'];
+		this.activeDoc = 'beliefs';
+		this.userName = null;
+		this.jobTitle = null;
+		this.userEmail = null;
+		this.engagementStarted = false;
+		this.engagementStopped = false;
+
+		// Generate new chat ID
+		this.chatId = this.generateUUID();
+		localStorage.setItem('chatId', this.chatId);
+
+		// Clear UI
+		this.messages.innerHTML = '';
+		this.renderSidebar();
+		this.displayDoc('beliefs');
+
+		// Restart engagement
+		this.startProgressiveEngagement();
+
+		console.log('Reset complete. New chat:', this.chatId);
 	}
 
 	async checkForNewUnlocks(userMessage, aiResponse) {
@@ -302,6 +400,7 @@ class VoiceChat {
 		this.renderSidebar();
 		this.checkForEmailUnlock();
 		this.showUnlockNotification(docName);
+		await this.saveConversation(); // Save unlock state
 	}
 
 	showUnlockNotification = (docName) => {
@@ -315,14 +414,18 @@ class VoiceChat {
 		}, 3000);
 	}
 
-	// Speech recognition methods (keeping existing implementation)
+	// Speech recognition methods
 	initSpeech() {
-		if (!('webkitSpeechRecognition' in window)) {
-			alert('Speech recognition not supported');
+		// Check for both standard and webkit-prefixed API
+		const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+		if (!SpeechRecognition) {
+			// Show Firefox/unsupported browser message
+			this.showBrowserWarning();
 			return;
 		}
 
-		this.recognition = new webkitSpeechRecognition();
+		this.recognition = new SpeechRecognition();
 		this.lastInterimTime = 0;
 
 		Object.assign(this.recognition, {
@@ -409,17 +512,17 @@ class VoiceChat {
 			this.updateLiveTranscript(fullText, !!interimTranscript.trim());
 		}
 
-		if (interimTranscript.trim()) {
-			this.lastInterimTime = Date.now();
-			clearTimeout(this.pauseTimer);
-			// Cancel countdown timer if new speech detected
-			const liveElement = document.getElementById('liveTranscript');
-			if (liveElement) {
-				liveElement.classList.remove('countdown');
-			}
-		} else if (this.accumulatedTranscript.trim()) {
-			this.startPauseDetection();
-		}
+		// COMMENTED OUT AUTO-SEND ON PAUSE
+		// if (interimTranscript.trim()) {
+		// 	this.lastInterimTime = Date.now();
+		// 	clearTimeout(this.pauseTimer);
+		// 	const liveElement = document.getElementById('liveTranscript');
+		// 	if (liveElement) {
+		// 		liveElement.classList.remove('countdown');
+		// 	}
+		// } else if (this.accumulatedTranscript.trim()) {
+		// 	this.startPauseDetection();
+		// }
 	}
 
 	updateLiveTranscript = (text, isLive) => {
@@ -441,48 +544,46 @@ class VoiceChat {
 		if (liveElement) liveElement.remove();
 	}
 
-	startPauseDetection = () => {
-		clearTimeout(this.pauseTimer);
-		this.pauseTimer = setTimeout(() => {
-			const timeSinceLastInterim = Date.now() - this.lastInterimTime;
-			if (timeSinceLastInterim > 1500) {
-				this.startCountdown();
-			} else {
-				this.startPauseDetection();
-			}
-		}, 500);
-	}
+	// COMMENTED OUT - NO AUTO-SEND
+	// startPauseDetection = () => {
+	// 	clearTimeout(this.pauseTimer);
+	// 	this.pauseTimer = setTimeout(() => {
+	// 		const timeSinceLastInterim = Date.now() - this.lastInterimTime;
+	// 		if (timeSinceLastInterim > 1500) {
+	// 			this.startCountdown();
+	// 		} else {
+	// 			this.startPauseDetection();
+	// 		}
+	// 	}, 500);
+	// }
 
-	startCountdown = () => {
-		// Show countdown timer on transcript
-		const liveElement = document.getElementById('liveTranscript');
-		if (liveElement) {
-			liveElement.classList.add('countdown');
-		}
+	// startCountdown = () => {
+	// 	const liveElement = document.getElementById('liveTranscript');
+	// 	if (liveElement) {
+	// 		liveElement.classList.add('countdown');
+	// 	}
+	// 	let seconds = 5;
+	// 	const countdownTick = () => {
+	// 		seconds--;
+	// 		if (seconds > 0) {
+	// 			this.pauseTimer = setTimeout(countdownTick, 1000);
+	// 		} else {
+	// 			this.handlePauseComplete();
+	// 		}
+	// 	};
+	// 	this.pauseTimer = setTimeout(countdownTick, 1000);
+	// }
 
-		let seconds = 5;
-		const countdownTick = () => {
-			seconds--;
-			if (seconds > 0) {
-				this.pauseTimer = setTimeout(countdownTick, 1000);
-			} else {
-				this.handlePauseComplete();
-			}
-		};
-		this.pauseTimer = setTimeout(countdownTick, 1000);
-	}
-
-	handlePauseComplete = () => {
-		if (!this.accumulatedTranscript.trim()) return;
-		// Clear countdown timer
-		const liveElement = document.getElementById('liveTranscript');
-		if (liveElement) {
-			liveElement.classList.remove('countdown');
-		}
-		const transcript = this.accumulatedTranscript;
-		this.accumulatedTranscript = '';
-		this.processFinalTranscript(transcript);
-	}
+	// handlePauseComplete = () => {
+	// 	if (!this.accumulatedTranscript.trim()) return;
+	// 	const liveElement = document.getElementById('liveTranscript');
+	// 	if (liveElement) {
+	// 		liveElement.classList.remove('countdown');
+	// 	}
+	// 	const transcript = this.accumulatedTranscript;
+	// 	this.accumulatedTranscript = '';
+	// 	this.processFinalTranscript(transcript);
+	// }
 
 	processFinalTranscript = (transcript) => {
 		if (!transcript.trim()) return;
@@ -493,11 +594,54 @@ class VoiceChat {
 	}
 
 	bindEvents = () => {
-		this.startBtn.onclick = () => this.toggleListening();
+		// Long press detection variables  
+		let pressTimer = null;
+		let longPressTriggered = false;
+
+		// Handle long press start
+		const handlePressStart = (e) => {
+			longPressTriggered = false;
+			pressTimer = setTimeout(() => {
+				longPressTriggered = true;
+				this.resetEverything();
+			}, 3000); // 3 second long press
+		};
+
+		// Handle press end
+		const handlePressEnd = (e) => {
+			clearTimeout(pressTimer);
+			pressTimer = null;
+
+			// If not a long press, handle normal click
+			if (!longPressTriggered) {
+				// Small delay to ensure this runs after touch events complete
+				setTimeout(() => {
+					if (!longPressTriggered) {
+						this.toggleListening();
+					}
+				}, 10);
+			}
+		};
+
+		// Mouse events for desktop
+		this.startBtn.addEventListener('mousedown', handlePressStart);
+		this.startBtn.addEventListener('mouseup', handlePressEnd);
+		this.startBtn.addEventListener('mouseleave', handlePressEnd);
+
+		// Touch events for mobile - no preventDefault to allow click events
+		this.startBtn.addEventListener('touchstart', handlePressStart, { passive: true });
+		this.startBtn.addEventListener('touchend', handlePressEnd, { passive: true });
+		this.startBtn.addEventListener('touchcancel', handlePressEnd, { passive: true });
 	}
 
 	toggleListening = () => {
-		this.engagementStopped = true; // Stop progressive engagement
+		// Don't allow if speech recognition not available
+		if (!this.recognition) {
+			console.log('Speech recognition not available');
+			return;
+		}
+
+		this.engagementStopped = true;
 		this.hideTypingIndicator();
 		this.isListening ? this.stopListening() : this.startListening();
 	}
@@ -545,8 +689,43 @@ class VoiceChat {
 		}
 	}
 
+	async extractUserInfo() {
+		// Only extract if we don't have both name and job
+		if (this.userName && this.jobTitle) return;
+
+		// Only extract if we have enough conversation
+		if (this.conversationHistory.length < 2) return;
+
+		try {
+			const response = await fetch('/api/chat', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					messages: this.conversationHistory,
+					extractNameJob: true,
+					chatId: this.chatId
+				})
+			});
+
+			const { extraction } = await response.json();
+			if (extraction) {
+				if (extraction.userName && !this.userName) {
+					this.userName = extraction.userName;
+					console.log('Extracted name:', this.userName);
+				}
+				if (extraction.jobTitle && !this.jobTitle) {
+					this.jobTitle = extraction.jobTitle;
+					console.log('Extracted job:', this.jobTitle);
+				}
+				this.saveConversationToStorage();
+				await this.saveConversation();
+			}
+		} catch (error) {
+			console.error('Failed to extract user info:', error);
+		}
+	}
+
 	async sendToAI(transcript) {
-		// Show typing indicator immediately
 		this.showTypingIndicator();
 
 		try {
@@ -555,29 +734,57 @@ class VoiceChat {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					messages: this.conversationHistory,
-					contextDocs: this.getRelevantDocs()
+					contextDocs: this.getAllDocs(), // Send ALL docs now
+					chatId: this.chatId
 				})
 			});
-			const { response: aiResponse } = await response.json();
 
-			// Hide typing indicator before showing response
+			if (!response.ok) {
+				throw new Error(`API request failed: ${response.status}`);
+			}
+
+			const data = await response.json();
+
+			if (data.error) {
+				console.error('API Error:', data.error, data.details);
+				throw new Error(data.error);
+			}
+
+			const aiResponse = data.response;
+
+			if (!aiResponse) {
+				throw new Error('No response from AI');
+			}
+
 			this.hideTypingIndicator();
 			this.addMessage(aiResponse, 'ai');
+
+			// Check for unlocks and extract user info
 			await this.checkForNewUnlocks(transcript, aiResponse);
+			await this.extractUserInfo();
+
+			// Save conversation after each exchange
+			await this.saveConversation();
 		} catch (error) {
+			console.error('Error in sendToAI:', error);
 			this.hideTypingIndicator();
-			this.addMessage('Sorry, something went wrong!', 'ai');
+			this.addMessage('Sorry, I\'m having trouble connecting right now. Please try again.', 'ai');
 		}
 	}
 
-	getRelevantDocs = () => this.unlockedDocs
-		.filter(name => this.documents[name])
-		.map(name => ({ name, content: this.documents[name].content }));
+	// Changed to return ALL documents for context
+	getAllDocs = () => Object.entries(this.documents)
+		.map(([name, doc]) => ({ name, content: doc.content }));
+
+	// Deprecated but kept for backwards compatibility
+	getRelevantDocs = () => this.getAllDocs();
 
 	addMessage(text, type) {
-		// Add to conversation history
+		const timestamp = new Date().toISOString();
 		const role = type === 'user' ? 'user' : 'assistant';
-		this.conversationHistory.push({ role, content: text });
+
+		// Add to conversation history with timestamp
+		this.conversationHistory.push({ role, content: text, timestamp });
 
 		// Add to UI
 		this.renderMessage(text, type);
