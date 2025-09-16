@@ -413,7 +413,10 @@ class VoiceChat {
 			this.lastInterimTime = Date.now();
 			clearTimeout(this.pauseTimer);
 			// Cancel countdown timer if new speech detected
-			this.startBtn.classList.remove('countdown');
+			const liveElement = document.getElementById('liveTranscript');
+			if (liveElement) {
+				liveElement.classList.remove('countdown');
+			}
 		} else if (this.accumulatedTranscript.trim()) {
 			this.startPauseDetection();
 		}
@@ -451,10 +454,13 @@ class VoiceChat {
 	}
 
 	startCountdown = () => {
-		// Show countdown timer on microphone
-		this.startBtn.classList.add('countdown');
+		// Show countdown timer on transcript
+		const liveElement = document.getElementById('liveTranscript');
+		if (liveElement) {
+			liveElement.classList.add('countdown');
+		}
 
-		let seconds = 3;
+		let seconds = 5;
 		const countdownTick = () => {
 			seconds--;
 			if (seconds > 0) {
@@ -469,7 +475,10 @@ class VoiceChat {
 	handlePauseComplete = () => {
 		if (!this.accumulatedTranscript.trim()) return;
 		// Clear countdown timer
-		this.startBtn.classList.remove('countdown');
+		const liveElement = document.getElementById('liveTranscript');
+		if (liveElement) {
+			liveElement.classList.remove('countdown');
+		}
 		const transcript = this.accumulatedTranscript;
 		this.accumulatedTranscript = '';
 		this.processFinalTranscript(transcript);
@@ -503,7 +512,6 @@ class VoiceChat {
 		this.clearLiveTranscript();
 		this.startBtn.textContent = '⏹️';
 		this.startBtn.classList.add('listening');
-		this.startBtn.classList.remove('countdown');
 
 		try {
 			this.recognition.start();
@@ -522,7 +530,6 @@ class VoiceChat {
 
 		this.startBtn.textContent = '🎤';
 		this.startBtn.classList.remove('listening');
-		this.startBtn.classList.remove('countdown');
 
 		try {
 			this.recognition.stop();
@@ -539,6 +546,9 @@ class VoiceChat {
 	}
 
 	async sendToAI(transcript) {
+		// Show typing indicator immediately
+		this.showTypingIndicator();
+
 		try {
 			const response = await fetch('/api/chat', {
 				method: 'POST',
@@ -549,9 +559,13 @@ class VoiceChat {
 				})
 			});
 			const { response: aiResponse } = await response.json();
+
+			// Hide typing indicator before showing response
+			this.hideTypingIndicator();
 			this.addMessage(aiResponse, 'ai');
 			await this.checkForNewUnlocks(transcript, aiResponse);
 		} catch (error) {
+			this.hideTypingIndicator();
 			this.addMessage('Sorry, something went wrong!', 'ai');
 		}
 	}
