@@ -594,44 +594,47 @@ class VoiceChat {
 	}
 
 	bindEvents = () => {
-		// Long press detection variables  
 		let pressTimer = null;
 		let longPressTriggered = false;
+		let touchHandled = false; // Prevent double events
 
-		// Handle long press start
 		const handlePressStart = (e) => {
 			longPressTriggered = false;
+			touchHandled = false;
 			pressTimer = setTimeout(() => {
 				longPressTriggered = true;
+				touchHandled = true;
 				this.resetEverything();
-			}, 3000); // 3 second long press
+			}, 3000);
 		};
 
-		// Handle press end
 		const handlePressEnd = (e) => {
 			clearTimeout(pressTimer);
 			pressTimer = null;
 
-			// If not a long press, handle normal click
-			if (!longPressTriggered) {
-				// Small delay to ensure this runs after touch events complete
-				setTimeout(() => {
-					if (!longPressTriggered) {
-						this.toggleListening();
-					}
-				}, 10);
+			if (!longPressTriggered && !touchHandled) {
+				touchHandled = true;
+				// Prevent default to stop click event on mobile
+				if (e.type.startsWith('touch')) {
+					e.preventDefault();
+				}
+				setTimeout(() => this.toggleListening(), 10);
 			}
 		};
 
-		// Mouse events for desktop
-		this.startBtn.addEventListener('mousedown', handlePressStart);
-		this.startBtn.addEventListener('mouseup', handlePressEnd);
-		this.startBtn.addEventListener('mouseleave', handlePressEnd);
+		// Mouse events for desktop only
+		if (!this.isMobile) {
+			this.startBtn.addEventListener('mousedown', handlePressStart);
+			this.startBtn.addEventListener('mouseup', handlePressEnd);
+			this.startBtn.addEventListener('mouseleave', handlePressEnd);
+		}
 
-		// Touch events for mobile - no preventDefault to allow click events
-		this.startBtn.addEventListener('touchstart', handlePressStart, { passive: true });
-		this.startBtn.addEventListener('touchend', handlePressEnd, { passive: true });
-		this.startBtn.addEventListener('touchcancel', handlePressEnd, { passive: true });
+		// Touch events for mobile - prevent click events
+		if (this.isMobile) {
+			this.startBtn.addEventListener('touchstart', handlePressStart, { passive: false });
+			this.startBtn.addEventListener('touchend', handlePressEnd, { passive: false });
+			this.startBtn.addEventListener('touchcancel', handlePressEnd, { passive: false });
+		}
 	}
 
 	toggleListening = () => {

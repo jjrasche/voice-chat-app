@@ -14,6 +14,52 @@
 		gtag('js', new Date());
 		gtag('config', 'G-N9N2QDSZ7W');
 	</script>
+	<!-- Add this to index.html for testing -->
+	<script>
+		// Quick API test runner - add to console
+		window.testAPI = async () => {
+			const tester = new APITester();
+
+			console.clear();
+			console.log('%c🧪 API Test Runner', 'font-size: 20px; color: #4ecdc4;');
+			console.log('Testing local APIs...\n');
+
+			try {
+				await tester.runAllTests();
+				console.log('%c✅ All tests passed!', 'color: #4ecdc4; font-weight: bold;');
+			} catch (error) {
+				console.log('%c❌ Tests failed:', 'color: #ff6b6b; font-weight: bold;', error);
+			}
+		};
+
+		// Quick mobile touch test
+		window.testMobileTouch = () => {
+			const btn = document.getElementById('startBtn');
+			if (!btn) {
+				console.log('❌ Start button not found');
+				return;
+			}
+
+			console.log('🔍 Testing mobile touch...');
+			console.log('Is mobile detected:', /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+			console.log('Touch events supported:', 'ontouchstart' in window);
+			console.log('Speech recognition available:', !!(window.SpeechRecognition || window.webkitSpeechRecognition));
+
+			// Simulate touch
+			const touchStart = new TouchEvent('touchstart', { bubbles: true });
+			const touchEnd = new TouchEvent('touchend', { bubbles: true });
+
+			btn.dispatchEvent(touchStart);
+			setTimeout(() => {
+				btn.dispatchEvent(touchEnd);
+				console.log('✅ Touch events simulated');
+			}, 100);
+		};
+
+		// Usage in console:
+		// testAPI()
+		// testMobileTouch()
+	</script>
 </head>
 
 <body>
@@ -37,6 +83,7 @@
 	</div>
 
 	<script src="script.js"></script>
+	<script src="api-test.js"></script>
 </body>
 
 </html>
