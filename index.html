@@ -77,8 +77,20 @@
 			<div class="chat-container" id="chatContainer">
 				<div class="chat-messages" id="messages"></div>
 			</div>
+
+			<!-- Text Input Interface (hidden by default) -->
+			<div class="text-input-container" id="textInputContainer" style="display: none;">
+				<div class="text-input-wrapper">
+					<textarea
+						id="textInput"
+						placeholder="Type your message here..."
+						rows="2"></textarea>
+					<button id="sendTextBtn" class="send-text-btn">Send</button>
+				</div>
+			</div>
 		</div>
 
+		<!-- Voice button (hidden if no speech recognition) -->
 		<button id="startBtn" class="floating-mic">🎤</button>
 	</div>
 

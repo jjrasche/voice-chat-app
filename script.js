@@ -11,6 +11,7 @@ class VoiceChat {
 		this.activeDoc = 'beliefs';
 		this.engagementStarted = false;
 		this.engagementStopped = false;
+		this.hasVoiceSupport = false;
 
 		// User tracking
 		this.chatId = null;
@@ -92,26 +93,14 @@ class VoiceChat {
 
 		this.initElements();
 		this.initChatId();
-		this.initSpeech();
+		this.checkVoiceSupport();
+		this.initInterface();
 		this.bindEvents();
 		this.loadConversationFromStorage();
 		this.loadInitialDocs();
 		this.startProgressiveEngagement();
 	}
 
-	showBrowserWarning() {
-		const warningDiv = document.createElement('div');
-		warningDiv.className = 'message ai';
-		warningDiv.style.background = '#ff6b6b';
-		warningDiv.innerHTML = `
-			<div>⚠️ Speech recognition is not supported in Firefox.</div>
-			<div style="font-size: 0.9rem; margin-top: 0.5rem;">Please use Chrome, Edge, or Safari for voice features.</div>
-		`;
-		this.messages.appendChild(warningDiv);
-		this.startBtn.style.display = 'none';
-	}
-
-	// Generate UUID for chat tracking
 	generateUUID() {
 		return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
 			const r = Math.random() * 16 | 0;
@@ -131,10 +120,34 @@ class VoiceChat {
 
 	initElements() {
 		this.startBtn = document.getElementById('startBtn');
+		this.textInputContainer = document.getElementById('textInputContainer');
+		this.textInput = document.getElementById('textInput');
+		this.sendTextBtn = document.getElementById('sendTextBtn');
 		this.chatContainer = document.getElementById('chatContainer');
 		this.messages = document.getElementById('messages');
 		this.docsContent = document.getElementById('docsContent');
 		this.docsSidebar = document.getElementById('docsSidebar');
+	}
+
+	checkVoiceSupport() {
+		const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+		this.hasVoiceSupport = !!SpeechRecognition;
+
+		if (this.hasVoiceSupport) {
+			this.initSpeech();
+		}
+	}
+
+	initInterface() {
+		if (this.hasVoiceSupport) {
+			// Show voice button, hide text input
+			this.startBtn.style.display = 'flex';
+			this.textInputContainer.style.display = 'none';
+		} else {
+			// Hide voice button, show text input
+			this.startBtn.style.display = 'none';
+			this.textInputContainer.style.display = 'block';
+		}
 	}
 
 	async loadInitialDocs() {
@@ -216,10 +229,7 @@ class VoiceChat {
 
 		this.userEmail = email;
 		localStorage.setItem('userEmail', email);
-
-		// Save to backend with conversation
 		await this.saveConversation();
-
 		emailInput.parentElement.innerHTML = '<div style="color: #4ecdc4;">✅ Thanks! You\'re all set.</div>';
 	}
 
@@ -227,7 +237,6 @@ class VoiceChat {
 		if (this.engagementStarted || this.engagementStopped) return;
 		this.engagementStarted = true;
 
-		// Modified to ask for name and role
 		setTimeout(() => {
 			if (this.engagementStopped) return;
 			this.showTypingIndicator();
@@ -253,7 +262,10 @@ class VoiceChat {
 							setTimeout(() => {
 								if (this.engagementStopped) return;
 								this.hideTypingIndicator();
-								this.addMessage("Just press and hold the microphone to start talking 🎤", 'ai');
+								const instruction = this.hasVoiceSupport
+									? "Just press and hold the microphone to start talking 🎤"
+									: "Type your thoughts in the box below and hit send 💬";
+								this.addMessage(instruction, 'ai');
 							}, 2000);
 						}, 10000);
 					}, 2000);
@@ -283,7 +295,6 @@ class VoiceChat {
 	}
 
 	async saveConversation() {
-		// Build messages with metadata
 		const messagesWithMetadata = this.conversationHistory.map(msg => ({
 			role: msg.role,
 			content: msg.content,
@@ -347,16 +358,16 @@ class VoiceChat {
 	}
 
 	resetEverything = () => {
-		// Show confirmation effect
-		this.startBtn.style.backgroundColor = '#ff3333';
+		// Visual feedback
+		const btn = this.hasVoiceSupport ? this.startBtn : this.sendTextBtn;
+		const originalBg = btn.style.backgroundColor;
+		btn.style.backgroundColor = '#ff3333';
 		setTimeout(() => {
-			this.startBtn.style.backgroundColor = '';
+			btn.style.backgroundColor = originalBg;
 		}, 500);
 
 		// Clear all state
 		localStorage.clear();
-
-		// Reset instance variables
 		this.conversationHistory = [];
 		this.unlockedDocs = ['beliefs'];
 		this.activeDoc = 'beliefs';
@@ -372,12 +383,12 @@ class VoiceChat {
 
 		// Clear UI
 		this.messages.innerHTML = '';
+		if (this.textInput) this.textInput.value = '';
 		this.renderSidebar();
 		this.displayDoc('beliefs');
 
 		// Restart engagement
 		this.startProgressiveEngagement();
-
 		console.log('Reset complete. New chat:', this.chatId);
 	}
 
@@ -400,7 +411,7 @@ class VoiceChat {
 		this.renderSidebar();
 		this.checkForEmailUnlock();
 		this.showUnlockNotification(docName);
-		await this.saveConversation(); // Save unlock state
+		await this.saveConversation();
 	}
 
 	showUnlockNotification = (docName) => {
@@ -416,15 +427,7 @@ class VoiceChat {
 
 	// Speech recognition methods
 	initSpeech() {
-		// Check for both standard and webkit-prefixed API
 		const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-		if (!SpeechRecognition) {
-			// Show Firefox/unsupported browser message
-			this.showBrowserWarning();
-			return;
-		}
-
 		this.recognition = new SpeechRecognition();
 		this.lastInterimTime = 0;
 
@@ -462,21 +465,31 @@ class VoiceChat {
 		this.recognition.onerror = (e) => {
 			console.error('Speech error:', e.error);
 			switch (e.error) {
-				case 'no-speech':
 				case 'aborted':
-					break;
-				case 'network':
-					console.error('Network error - check connection');
-					this.stopListening();
-					break;
-				case 'not-allowed':
-					console.error('Microphone permission denied');
-					this.stopListening();
-					break;
-				default:
 					if (this.isListening) {
 						setTimeout(() => {
 							if (this.isListening && this.restartAttempts < this.maxRestartAttempts) {
+								try {
+									this.restartAttempts++;
+									this.recognition.start();
+								} catch (err) {
+									this.stopListening();
+								}
+							}
+						}, 500);
+					}
+					break;
+				case 'no-speech':
+					break;
+				case 'network':
+				case 'not-allowed':
+					console.error(`Speech error: ${e.error}`);
+					this.stopListening();
+					break;
+				default:
+					if (this.isListening && this.restartAttempts < this.maxRestartAttempts) {
+						setTimeout(() => {
+							if (this.isListening) {
 								try {
 									this.recognition.start();
 								} catch (err) {
@@ -506,23 +519,10 @@ class VoiceChat {
 			this.accumulatedTranscript += finalTranscript;
 		}
 
-		// Show live transcription
 		const fullText = this.accumulatedTranscript + interimTranscript;
 		if (fullText.trim()) {
 			this.updateLiveTranscript(fullText, !!interimTranscript.trim());
 		}
-
-		// COMMENTED OUT AUTO-SEND ON PAUSE
-		// if (interimTranscript.trim()) {
-		// 	this.lastInterimTime = Date.now();
-		// 	clearTimeout(this.pauseTimer);
-		// 	const liveElement = document.getElementById('liveTranscript');
-		// 	if (liveElement) {
-		// 		liveElement.classList.remove('countdown');
-		// 	}
-		// } else if (this.accumulatedTranscript.trim()) {
-		// 	this.startPauseDetection();
-		// }
 	}
 
 	updateLiveTranscript = (text, isLive) => {
@@ -544,47 +544,6 @@ class VoiceChat {
 		if (liveElement) liveElement.remove();
 	}
 
-	// COMMENTED OUT - NO AUTO-SEND
-	// startPauseDetection = () => {
-	// 	clearTimeout(this.pauseTimer);
-	// 	this.pauseTimer = setTimeout(() => {
-	// 		const timeSinceLastInterim = Date.now() - this.lastInterimTime;
-	// 		if (timeSinceLastInterim > 1500) {
-	// 			this.startCountdown();
-	// 		} else {
-	// 			this.startPauseDetection();
-	// 		}
-	// 	}, 500);
-	// }
-
-	// startCountdown = () => {
-	// 	const liveElement = document.getElementById('liveTranscript');
-	// 	if (liveElement) {
-	// 		liveElement.classList.add('countdown');
-	// 	}
-	// 	let seconds = 5;
-	// 	const countdownTick = () => {
-	// 		seconds--;
-	// 		if (seconds > 0) {
-	// 			this.pauseTimer = setTimeout(countdownTick, 1000);
-	// 		} else {
-	// 			this.handlePauseComplete();
-	// 		}
-	// 	};
-	// 	this.pauseTimer = setTimeout(countdownTick, 1000);
-	// }
-
-	// handlePauseComplete = () => {
-	// 	if (!this.accumulatedTranscript.trim()) return;
-	// 	const liveElement = document.getElementById('liveTranscript');
-	// 	if (liveElement) {
-	// 		liveElement.classList.remove('countdown');
-	// 	}
-	// 	const transcript = this.accumulatedTranscript;
-	// 	this.accumulatedTranscript = '';
-	// 	this.processFinalTranscript(transcript);
-	// }
-
 	processFinalTranscript = (transcript) => {
 		if (!transcript.trim()) return;
 		this.clearLiveTranscript();
@@ -593,64 +552,102 @@ class VoiceChat {
 		this.sendToAI(transcript);
 	}
 
+	// Text input methods
+	sendTextMessage = () => {
+		const message = this.textInput.value.trim();
+		if (!message) return;
+
+		// Visual feedback
+		this.sendTextBtn.textContent = '✓';
+		this.sendTextBtn.style.background = '#4CAF50';
+		this.sendTextBtn.disabled = true;
+
+		setTimeout(() => {
+			this.textInput.value = '';
+			this.sendTextBtn.textContent = 'Send';
+			this.sendTextBtn.style.background = '';
+			this.sendTextBtn.disabled = false;
+
+			this.addMessage(message, 'user');
+			this.sendToAI(message);
+		}, 200);
+	}
+
 	bindEvents = () => {
-		let pressTimer = null;
-		let longPressTriggered = false;
-		let touchHandled = false; // Prevent double events
+		// Text input events
+		if (this.textInput && this.sendTextBtn) {
+			this.sendTextBtn.addEventListener('click', this.sendTextMessage);
 
-		const handlePressStart = (e) => {
-			longPressTriggered = false;
-			touchHandled = false;
-			pressTimer = setTimeout(() => {
-				longPressTriggered = true;
-				touchHandled = true;
-				this.resetEverything();
-			}, 3000);
-		};
-
-		const handlePressEnd = (e) => {
-			clearTimeout(pressTimer);
-			pressTimer = null;
-
-			if (!longPressTriggered && !touchHandled) {
-				touchHandled = true;
-				// Prevent default to stop click event on mobile
-				if (e.type.startsWith('touch')) {
+			this.textInput.addEventListener('keydown', (e) => {
+				if (e.ctrlKey && e.key === 'Enter') {
 					e.preventDefault();
+					this.sendTextMessage();
 				}
-				setTimeout(() => this.toggleListening(), 10);
-			}
-		};
+			});
 
-		// Mouse events for desktop only
-		if (!this.isMobile) {
-			this.startBtn.addEventListener('mousedown', handlePressStart);
-			this.startBtn.addEventListener('mouseup', handlePressEnd);
-			this.startBtn.addEventListener('mouseleave', handlePressEnd);
+			// Auto-resize textarea
+			this.textInput.addEventListener('input', () => {
+				this.textInput.style.height = 'auto';
+				this.textInput.style.height = Math.min(this.textInput.scrollHeight, 120) + 'px';
+			});
 		}
 
-		// Touch events for mobile - prevent click events
-		if (this.isMobile) {
-			this.startBtn.addEventListener('touchstart', handlePressStart, { passive: false });
-			this.startBtn.addEventListener('touchend', handlePressEnd, { passive: false });
-			this.startBtn.addEventListener('touchcancel', handlePressEnd, { passive: false });
+		// Voice button events (only if voice is supported)
+		if (this.hasVoiceSupport && this.startBtn) {
+			let pressTimer = null;
+			let longPressTriggered = false;
+			let isPressed = false;
+
+			const handlePressStart = (e) => {
+				if (isPressed) return;
+				isPressed = true;
+				longPressTriggered = false;
+				pressTimer = setTimeout(() => {
+					longPressTriggered = true;
+					this.resetEverything();
+				}, 3000);
+			};
+
+			const handlePressEnd = (e) => {
+				if (!isPressed) return;
+				isPressed = false;
+				clearTimeout(pressTimer);
+				pressTimer = null;
+
+				if (!longPressTriggered) {
+					if (e.type.startsWith('touch')) {
+						e.preventDefault();
+					}
+					setTimeout(() => this.toggleListening(), 10);
+				}
+			};
+
+			// Mouse events for desktop
+			if (!this.isMobile) {
+				this.startBtn.addEventListener('mousedown', handlePressStart);
+				this.startBtn.addEventListener('mouseup', handlePressEnd);
+				this.startBtn.addEventListener('mouseleave', handlePressEnd);
+			}
+
+			// Touch events for mobile
+			if (this.isMobile) {
+				this.startBtn.addEventListener('touchstart', handlePressStart, { passive: false });
+				this.startBtn.addEventListener('touchend', handlePressEnd, { passive: false });
+				this.startBtn.addEventListener('touchcancel', handlePressEnd, { passive: false });
+				this.startBtn.addEventListener('click', (e) => e.preventDefault());
+			}
 		}
 	}
 
 	toggleListening = () => {
-		// Don't allow if speech recognition not available
-		if (!this.recognition) {
-			console.log('Speech recognition not available');
-			return;
-		}
-
+		if (!this.recognition) return;
 		this.engagementStopped = true;
 		this.hideTypingIndicator();
 		this.isListening ? this.stopListening() : this.startListening();
 	}
 
 	startListening() {
-		if (this.isListening) return;
+		if (this.isListening || !this.recognition) return;
 
 		this.isListening = true;
 		this.accumulatedTranscript = '';
@@ -669,7 +666,7 @@ class VoiceChat {
 	}
 
 	stopListening() {
-		if (!this.isListening) return;
+		if (!this.isListening || !this.recognition) return;
 
 		this.isListening = false;
 		this.restartAttempts = this.maxRestartAttempts;
@@ -693,10 +690,7 @@ class VoiceChat {
 	}
 
 	async extractUserInfo() {
-		// Only extract if we don't have both name and job
 		if (this.userName && this.jobTitle) return;
-
-		// Only extract if we have enough conversation
 		if (this.conversationHistory.length < 2) return;
 
 		try {
@@ -728,7 +722,8 @@ class VoiceChat {
 		}
 	}
 
-	async sendToAI(transcript) {
+	async sendToAI(message) {
+		this.engagementStopped = true;
 		this.showTypingIndicator();
 
 		try {
@@ -737,7 +732,7 @@ class VoiceChat {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					messages: this.conversationHistory,
-					contextDocs: this.getAllDocs(), // Send ALL docs now
+					contextDocs: this.getAllDocs(),
 					chatId: this.chatId
 				})
 			});
@@ -754,7 +749,6 @@ class VoiceChat {
 			}
 
 			const aiResponse = data.response;
-
 			if (!aiResponse) {
 				throw new Error('No response from AI');
 			}
@@ -762,11 +756,8 @@ class VoiceChat {
 			this.hideTypingIndicator();
 			this.addMessage(aiResponse, 'ai');
 
-			// Check for unlocks and extract user info
-			await this.checkForNewUnlocks(transcript, aiResponse);
+			await this.checkForNewUnlocks(message, aiResponse);
 			await this.extractUserInfo();
-
-			// Save conversation after each exchange
 			await this.saveConversation();
 		} catch (error) {
 			console.error('Error in sendToAI:', error);
@@ -775,24 +766,14 @@ class VoiceChat {
 		}
 	}
 
-	// Changed to return ALL documents for context
 	getAllDocs = () => Object.entries(this.documents)
 		.map(([name, doc]) => ({ name, content: doc.content }));
-
-	// Deprecated but kept for backwards compatibility
-	getRelevantDocs = () => this.getAllDocs();
 
 	addMessage(text, type) {
 		const timestamp = new Date().toISOString();
 		const role = type === 'user' ? 'user' : 'assistant';
-
-		// Add to conversation history with timestamp
 		this.conversationHistory.push({ role, content: text, timestamp });
-
-		// Add to UI
 		this.renderMessage(text, type);
-
-		// Save to storage
 		this.saveConversationToStorage();
 	}
 

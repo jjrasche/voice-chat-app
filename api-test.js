@@ -223,3 +223,55 @@ const tester = new APITester();
 // tester.testChatAPI();
 // tester.testConversationAPI();
 // tester.testContactAPI();
+
+// Add this to your api-test.js or run in console to test context sizes
+
+async function testContextSize() {
+	console.log('🔍 Testing context sizes...');
+
+	// Simulate all documents (copy from your script.js)
+	const allDocs = [
+		{ name: 'beliefs', content: '# BELIEFS\n* **Voice-first AI** creates frictionless interaction...' },
+		{ name: 'ai-native', content: '# AI-NATIVE\n* **Being AI-native means** human creativity plus machine...' },
+		// ... add all your doc contents
+	];
+
+	// Build document context like the API does
+	const documentContext = '\n\nRELEVANT DOCUMENTATION:\n' +
+		allDocs.map(doc => `## ${doc.name}\n${doc.content}`).join('\n\n');
+
+	// Simulate various conversation lengths
+	const scenarios = [
+		{ name: 'Short (5 messages)', msgCount: 5 },
+		{ name: 'Medium (20 messages)', msgCount: 20 },
+		{ name: 'Long (50 messages)', msgCount: 50 },
+		{ name: 'Very Long (100 messages)', msgCount: 100 }
+	];
+
+	scenarios.forEach(scenario => {
+		// Create fake conversation
+		const messages = Array.from({ length: scenario.msgCount }, (_, i) => ({
+			role: i % 2 === 0 ? 'user' : 'assistant',
+			content: `This is message ${i + 1}. I'm talking about AI-native tools and building capability. This could be a longer message discussing technical details, workflow automation, and collaborative thinking patterns.`
+		}));
+
+		const systemPrompt = `You're having a voice conversation about building AI-native tools...${documentContext}...CRITICAL: Keep responses extremely short...`;
+
+		const totalChars = systemPrompt.length + JSON.stringify(messages).length;
+		const estimatedTokens = Math.ceil(totalChars / 4);
+
+		console.log(`${scenario.name}:`);
+		console.log(`  Total chars: ${totalChars.toLocaleString()}`);
+		console.log(`  Estimated tokens: ${estimatedTokens.toLocaleString()}`);
+		console.log(`  Within limit: ${estimatedTokens < 131072 ? '✅' : '❌'}`);
+		console.log(`  Document context: ${documentContext.length.toLocaleString()} chars`);
+		console.log('');
+	});
+
+	console.log('📊 Document breakdown:');
+	allDocs.forEach(doc => {
+		console.log(`  ${doc.name}: ${doc.content.length} chars`);
+	});
+}
+
+// Run: testContextSize()
