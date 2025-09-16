@@ -96,9 +96,13 @@ class VoiceChat {
 		this.checkVoiceSupport();
 		this.initInterface();
 		this.bindEvents();
+		// Fixed order:
 		this.loadConversationFromStorage();
 		this.loadInitialDocs();
-		this.startProgressiveEngagement();
+		// Only start engagement if no existing conversation
+		if (this.conversationHistory.length === 0) {
+			this.startProgressiveEngagement();
+		}
 	}
 
 	generateUUID() {
@@ -234,6 +238,11 @@ class VoiceChat {
 	}
 
 	startProgressiveEngagement = () => {
+		// Don't start if we have existing conversation
+		if (this.conversationHistory.length > 0) {
+			this.engagementStopped = true;
+			return;
+		}
 		if (this.engagementStarted || this.engagementStopped) return;
 		this.engagementStarted = true;
 
