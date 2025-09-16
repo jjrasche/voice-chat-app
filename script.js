@@ -11,13 +11,6 @@ class VoiceChat {
 		this.activeDoc = 'beliefs';
 		this.engagementStarted = false;
 		this.engagementStopped = false;
-		this.unlockRules = {
-			'ai-native': ['ai native', 'ai tools', 'productivity', 'workflow'],
-			'community': ['community', 'collaboration', 'consensus', 'collective'],
-			'flow-graph': ['knowledge', 'graph', 'flow', 'thinking'],
-			'contribute': ['contribute', 'build', 'help', 'join'],
-			'platform': ['platform', 'technical', 'browser', 'open source']
-		};
 
 		// Mobile speech recognition enhancements
 		this.isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -25,63 +18,70 @@ class VoiceChat {
 		this.maxRestartAttempts = 50;
 		this.lastInterimTime = 0;
 
-		this.docIcons = {
-			'beliefs': '📚',
-			'ai-native': '🤖',
-			'community': '👥',
-			'flow-graph': '🧠',
-			'contribute': '🔨',
-			'platform': '⚡'
-		};
-
-		this.docLabels = {
-			'beliefs': 'Beliefs',
-			'ai-native': 'AI Native',
-			'community': 'Community',
-			'flow-graph': 'Flow Graph',
-			'contribute': 'Contribute',
-			'platform': 'Platform'
-		};
-
-		this.docContent = {
-			'beliefs': `# BELIEFS
+		this.documents = {
+			'beliefs': {
+				icon: '📚',
+				label: 'Beliefs',
+				unlockRules: [], // Always unlocked
+				content: `# BELIEFS
 * **Voice-first AI** creates frictionless interaction enabling flow where thoughts come easily and problems solve quickly
 * **Individual capability** is the foundation of freedom - AI-native tools make people more capable and impactful
 * **AI democratization** prevents inequality - allows have-nots to access what only the rich had before
 * **Full utility requires trust** - you can't be intimate with tools owned by corporations extracting from you
-* **Privacy and data ownership** must remain yours for the deep sharing needed to maximize impact`,
-
-			'ai-native': `# AI-NATIVE
+* **Privacy and data ownership** must remain yours for the deep sharing needed to maximize impact`
+			},
+			'ai-native': {
+				icon: '🤖',
+				label: 'AI Native',
+				unlockRules: ['ai native', 'ai tools', 'productivity', 'workflow'],
+				content: `# AI-NATIVE
 * **Being AI-native means** human creativity plus machine efficiency working in harmony
 * **Reliable task automation** - hand routine work to agent AI to multiply your impact
 * **Quick access to information** and quality inference on your exact working context keeps you in flow
-* **Inference access** to your knowledge and context lets you flow longer and deeper than ever possible`,
-
-			'community': `# COMMUNITY
+* **Inference access** to your knowledge and context lets you flow longer and deeper than ever possible`
+			},
+			'community': {
+				icon: '👥',
+				label: 'Community',
+				unlockRules: ['community', 'collaboration', 'consensus', 'collective'],
+				content: `# COMMUNITY
 * **More capable individuals** create more capable, flourishing communities
 * **AI solves coordination** problems - consensus and connection issues that prevent collaboration
 * **Reduces information overhead** while preserving essential human connection time
-* **Informed populace** understands nuance and has tools for engagement and government accountability`,
-
-			'flow-graph': `# FLOW-GRAPH
+* **Informed populace** understands nuance and has tools for engagement and government accountability`
+			},
+			'flow-graph': {
+				icon: '🧠',
+				label: 'Flow Graph',
+				unlockRules: ['knowledge', 'graph', 'flow', 'thinking'],
+				content: `# FLOW-GRAPH
 * **Flow state requires** frictionless access to your knowledge network and previous connections
 * **Accessing previous ideas** enables deeper insights and faster problem-solving through atomic linking
 * **AI-native tools create** knowledge graphs as byproducts - connections emerge from usage patterns
-* **Connected knowledge** creates compound insights when context and history merge seamlessly`,
-
-			'contribute': `# CONTRIBUTE
+* **Connected knowledge** creates compound insights when context and history merge seamlessly`
+			},
+			'contribute': {
+				icon: '🔨',
+				label: 'Contribute',
+				unlockRules: ['contribute', 'build', 'help', 'join'],
+				content: `# CONTRIBUTE
 * **Build freedom and equality** now by democratizing AI-native tools for everyone
 * **Beta testers** - use tools daily, provide feedback on real workflows and pain points
 * **Developers** - Chrome extensions, open source experience, modular design patterns welcome
 * **Dreamers** - envision how AI-native society could heal from our current dysfunction
-* **Patrons** - support affordable access to hardware, networks, and tool development`,
-
-			'platform': `# PLATFORM
+* **Patrons** - support affordable access to hardware, networks, and tool development`
+			},
+			'platform': {
+				icon: '⚡',
+				label: 'Platform',
+				unlockRules: ['platform', 'technical', 'browser', 'open source'],
+				content: `# PLATFORM
 * **Browser-first** - Chrome provides universal, ever-present platform for AI tools
 * **Affordable hardware** - Chrome OS devices make access economically viable for most people
 * **Open source** ensures transparent, community-driven development and trust
 * **Local models** when possible, cloud when needed, always with honest limitations
 * **Distributed systems** - Chrome runtime enables seamless cross-context tool coordination`
+			}
 		};
 
 		this.initElements();
@@ -109,12 +109,13 @@ class VoiceChat {
 		this.docsSidebar.innerHTML = this.availableDocs.map(docName => {
 			const isUnlocked = this.unlockedDocs.includes(docName);
 			const isActive = this.activeDoc === docName;
+			const doc = this.documents[docName];
 			return `
 				<div class="doc-icon ${isUnlocked ? 'unlocked' : 'locked'} ${isActive ? 'active' : ''}" 
 					 data-doc="${docName}" 
-					 data-label="${this.docLabels[docName]}"
+					 data-label="${doc.label}"
 					 onclick="voiceChat.selectDoc('${docName}')">
-					${this.docIcons[docName]}
+					${doc.icon}
 				</div>
 			`;
 		}).join('');
@@ -128,12 +129,12 @@ class VoiceChat {
 	}
 
 	displayDoc(docName, isNewlyUnlocked = false) {
-		const content = this.docContent[docName];
-		if (!content) return;
+		const doc = this.documents[docName];
+		if (!doc) return;
 
 		this.docsContent.innerHTML = `
 			<div class="doc-section${isNewlyUnlocked ? ' newly-unlocked' : ''}">
-				${marked.parse(content)}
+				${marked.parse(doc.content)}
 			</div>
 		`;
 
@@ -270,6 +271,10 @@ class VoiceChat {
 		if (savedHistory) {
 			this.conversationHistory = JSON.parse(savedHistory);
 			this.engagementStopped = true; // Don't show intro if conversation exists
+			// Render saved messages (without adding to history again)
+			this.conversationHistory.forEach(msg =>
+				this.renderMessage(msg.content, msg.role === 'user' ? 'user' : 'ai')
+			);
 		}
 		if (savedDocs) this.unlockedDocs = JSON.parse(savedDocs);
 		if (savedActiveDoc && this.unlockedDocs.includes(savedActiveDoc)) {
@@ -280,10 +285,10 @@ class VoiceChat {
 
 	async checkForNewUnlocks(userMessage, aiResponse) {
 		const conversationText = (userMessage + ' ' + aiResponse).toLowerCase();
-		const newUnlocks = Object.entries(this.unlockRules)
-			.filter(([docName, keywords]) =>
+		const newUnlocks = Object.entries(this.documents)
+			.filter(([docName, doc]) =>
 				!this.unlockedDocs.includes(docName) &&
-				keywords.some(keyword => conversationText.includes(keyword))
+				doc.unlockRules.some(keyword => conversationText.includes(keyword))
 			)
 			.map(([docName]) => docName);
 
@@ -302,7 +307,7 @@ class VoiceChat {
 	showUnlockNotification = (docName) => {
 		const notification = document.createElement('div');
 		notification.style.cssText = `position: fixed; top: 20px; right: 20px; background: #4ecdc4; color: #1a1a1a; padding: 1rem; border-radius: 8px; font-weight: 500; z-index: 1000; animation: slideIn 0.3s ease-out;`;
-		notification.textContent = `🔓 Unlocked: ${this.docLabels[docName]}`;
+		notification.textContent = `🔓 Unlocked: ${this.documents[docName].label}`;
 		document.body.appendChild(notification);
 		setTimeout(() => {
 			notification.style.animation = 'slideOut 0.3s ease-in';
@@ -407,6 +412,8 @@ class VoiceChat {
 		if (interimTranscript.trim()) {
 			this.lastInterimTime = Date.now();
 			clearTimeout(this.pauseTimer);
+			// Cancel countdown timer if new speech detected
+			this.startBtn.classList.remove('countdown');
 		} else if (this.accumulatedTranscript.trim()) {
 			this.startPauseDetection();
 		}
@@ -419,46 +426,11 @@ class VoiceChat {
 			liveElement = document.createElement('div');
 			liveElement.id = 'liveTranscript';
 			liveElement.className = 'live-transcript';
-			liveElement.onclick = () => this.editTranscript();
 			this.messages.appendChild(liveElement);
 		}
 
 		liveElement.innerHTML = text + (isLive ? '<span class="transcript-cursor">|</span>' : '');
 		this.messages.scrollTop = this.messages.scrollHeight;
-	}
-
-	editTranscript = () => {
-		const liveElement = document.getElementById('liveTranscript');
-		if (!liveElement) return;
-
-		// Create editable input
-		const input = document.createElement('input');
-		input.type = 'text';
-		input.value = this.accumulatedTranscript;
-		input.style.cssText = `
-			width: 100%; 
-			background: #2a2a2a; 
-			border: 1px solid #4ecdc4; 
-			border-radius: 4px; 
-			padding: 0.5rem; 
-			color: #fff; 
-			font-size: 1rem;
-		`;
-
-		input.onkeydown = (e) => {
-			if (e.key === 'Enter') {
-				this.accumulatedTranscript = input.value;
-				this.handlePauseComplete();
-			} else if (e.key === 'Escape') {
-				this.clearLiveTranscript();
-				this.stopListening();
-			}
-		};
-
-		liveElement.innerHTML = '';
-		liveElement.appendChild(input);
-		input.focus();
-		input.select();
 	}
 
 	clearLiveTranscript = () => {
@@ -479,6 +451,9 @@ class VoiceChat {
 	}
 
 	startCountdown = () => {
+		// Show countdown timer on microphone
+		this.startBtn.classList.add('countdown');
+
 		let seconds = 3;
 		const countdownTick = () => {
 			seconds--;
@@ -493,6 +468,8 @@ class VoiceChat {
 
 	handlePauseComplete = () => {
 		if (!this.accumulatedTranscript.trim()) return;
+		// Clear countdown timer
+		this.startBtn.classList.remove('countdown');
 		const transcript = this.accumulatedTranscript;
 		this.accumulatedTranscript = '';
 		this.processFinalTranscript(transcript);
@@ -526,6 +503,7 @@ class VoiceChat {
 		this.clearLiveTranscript();
 		this.startBtn.textContent = '⏹️';
 		this.startBtn.classList.add('listening');
+		this.startBtn.classList.remove('countdown');
 
 		try {
 			this.recognition.start();
@@ -544,6 +522,7 @@ class VoiceChat {
 
 		this.startBtn.textContent = '🎤';
 		this.startBtn.classList.remove('listening');
+		this.startBtn.classList.remove('countdown');
 
 		try {
 			this.recognition.stop();
@@ -560,7 +539,6 @@ class VoiceChat {
 	}
 
 	async sendToAI(transcript) {
-		this.conversationHistory.push({ role: 'user', content: transcript });
 		try {
 			const response = await fetch('/api/chat', {
 				method: 'POST',
@@ -571,20 +549,30 @@ class VoiceChat {
 				})
 			});
 			const { response: aiResponse } = await response.json();
-			this.conversationHistory.push({ role: 'assistant', content: aiResponse });
 			this.addMessage(aiResponse, 'ai');
 			await this.checkForNewUnlocks(transcript, aiResponse);
-			this.saveConversationToStorage();
 		} catch (error) {
 			this.addMessage('Sorry, something went wrong!', 'ai');
 		}
 	}
 
 	getRelevantDocs = () => this.unlockedDocs
-		.filter(name => this.docContent[name])
-		.map(name => ({ name, content: this.docContent[name] }));
+		.filter(name => this.documents[name])
+		.map(name => ({ name, content: this.documents[name].content }));
 
 	addMessage(text, type) {
+		// Add to conversation history
+		const role = type === 'user' ? 'user' : 'assistant';
+		this.conversationHistory.push({ role, content: text });
+
+		// Add to UI
+		this.renderMessage(text, type);
+
+		// Save to storage
+		this.saveConversationToStorage();
+	}
+
+	renderMessage(text, type) {
 		const messageDiv = document.createElement('div');
 		messageDiv.className = `message ${type}`;
 		messageDiv.textContent = text;
