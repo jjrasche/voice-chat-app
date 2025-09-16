@@ -12,42 +12,30 @@
 		window.dataLayer = window.dataLayer || [];
 		function gtag() { dataLayer.push(arguments); }
 		gtag('js', new Date());
-
 		gtag('config', 'G-N9N2QDSZ7W');
 	</script>
 </head>
 
 <body>
-	<div class="contact-bar" id="contactBar">
-		<div class="contact-content">
-			<span class="contact-status" id="contactStatus">🔒 Unlock 3 docs to enter contact info</span>
-			<div class="contact-form">
-				<input type="email" id="emailInput" placeholder="your@email.com">
-				<button id="submitContact">Submit</button>
-			</div>
-		</div>
-	</div>
-
 	<div class="app-container">
 		<div class="docs-panel">
-			<div class="docs-header">
-				<h2>Knowledge Base</h2>
-				<div class="unlock-counter">
-					<span id="unlockedCount">1</span> of <span id="totalDocs">5</span> unlocked
-				</div>
+			<div class="docs-sidebar" id="docsSidebar">
+				<!-- Icons render here dynamically -->
 			</div>
 			<div class="docs-content" id="docsContent">
-				<!-- Documents load here progressively -->
+				<!-- Active document content loads here -->
 			</div>
 		</div>
+
 		<div class="chat-panel">
 			<div class="chat-container" id="chatContainer">
 				<div class="chat-messages" id="messages"></div>
-				<div class="status" id="status">Ready to listen...</div>
-				<button id="startBtn" class="mic-btn">🎤 Start Chat</button>
 			</div>
 		</div>
+
+		<button id="startBtn" class="floating-mic">🎤</button>
 	</div>
+
 	<script src="script.js"></script>
 </body>
 

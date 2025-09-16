@@ -6,118 +6,175 @@ class VoiceChat {
 		this.accumulatedTranscript = '';
 		this.pauseTimer = null;
 		this.conversationHistory = [];
-		this.availableDocs = ['beliefs', 'ai-native', 'projects', 'community', 'tools'];
+		this.availableDocs = ['beliefs', 'ai-native', 'community', 'flow-graph', 'contribute', 'platform'];
 		this.unlockedDocs = ['beliefs'];
-		this.loadedDocs = new Map();
-		this.collapsedDocs = new Set();
+		this.activeDoc = 'beliefs';
+		this.engagementStarted = false;
+		this.engagementStopped = false;
 		this.unlockRules = {
 			'ai-native': ['ai native', 'ai tools', 'productivity', 'workflow'],
-			'projects': ['project', 'building', 'cognition', 'extension'],
 			'community': ['community', 'collaboration', 'consensus', 'collective'],
-			'tools': ['tools', 'software', 'development', 'open source']
+			'flow-graph': ['knowledge', 'graph', 'flow', 'thinking'],
+			'contribute': ['contribute', 'build', 'help', 'join'],
+			'platform': ['platform', 'technical', 'browser', 'open source']
 		};
 
 		// Mobile speech recognition enhancements
 		this.isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 		this.restartAttempts = 0;
 		this.maxRestartAttempts = 50;
-		this.lastInterimTime = 0; // Track when user last spoke
+		this.lastInterimTime = 0;
+
+		this.docIcons = {
+			'beliefs': '📚',
+			'ai-native': '🤖',
+			'community': '👥',
+			'flow-graph': '🧠',
+			'contribute': '🔨',
+			'platform': '⚡'
+		};
+
+		this.docLabels = {
+			'beliefs': 'Beliefs',
+			'ai-native': 'AI Native',
+			'community': 'Community',
+			'flow-graph': 'Flow Graph',
+			'contribute': 'Contribute',
+			'platform': 'Platform'
+		};
+
+		this.docContent = {
+			'beliefs': `# BELIEFS
+* **Voice-first AI** creates frictionless interaction enabling flow where thoughts come easily and problems solve quickly
+* **Individual capability** is the foundation of freedom - AI-native tools make people more capable and impactful
+* **AI democratization** prevents inequality - allows have-nots to access what only the rich had before
+* **Full utility requires trust** - you can't be intimate with tools owned by corporations extracting from you
+* **Privacy and data ownership** must remain yours for the deep sharing needed to maximize impact`,
+
+			'ai-native': `# AI-NATIVE
+* **Being AI-native means** human creativity plus machine efficiency working in harmony
+* **Reliable task automation** - hand routine work to agent AI to multiply your impact
+* **Quick access to information** and quality inference on your exact working context keeps you in flow
+* **Inference access** to your knowledge and context lets you flow longer and deeper than ever possible`,
+
+			'community': `# COMMUNITY
+* **More capable individuals** create more capable, flourishing communities
+* **AI solves coordination** problems - consensus and connection issues that prevent collaboration
+* **Reduces information overhead** while preserving essential human connection time
+* **Informed populace** understands nuance and has tools for engagement and government accountability`,
+
+			'flow-graph': `# FLOW-GRAPH
+* **Flow state requires** frictionless access to your knowledge network and previous connections
+* **Accessing previous ideas** enables deeper insights and faster problem-solving through atomic linking
+* **AI-native tools create** knowledge graphs as byproducts - connections emerge from usage patterns
+* **Connected knowledge** creates compound insights when context and history merge seamlessly`,
+
+			'contribute': `# CONTRIBUTE
+* **Build freedom and equality** now by democratizing AI-native tools for everyone
+* **Beta testers** - use tools daily, provide feedback on real workflows and pain points
+* **Developers** - Chrome extensions, open source experience, modular design patterns welcome
+* **Dreamers** - envision how AI-native society could heal from our current dysfunction
+* **Patrons** - support affordable access to hardware, networks, and tool development`,
+
+			'platform': `# PLATFORM
+* **Browser-first** - Chrome provides universal, ever-present platform for AI tools
+* **Affordable hardware** - Chrome OS devices make access economically viable for most people
+* **Open source** ensures transparent, community-driven development and trust
+* **Local models** when possible, cloud when needed, always with honest limitations
+* **Distributed systems** - Chrome runtime enables seamless cross-context tool coordination`
+		};
 
 		this.initElements();
 		this.initSpeech();
 		this.bindEvents();
 		this.loadConversationFromStorage();
 		this.loadInitialDocs();
-		this.addMessage("Hi, I'm building AI tools that increase individual capability. Browse the knowledge base, then let's talk about how we can 10X your productivity!", 'ai');
+		this.startProgressiveEngagement();
 	}
 
 	initElements() {
 		this.startBtn = document.getElementById('startBtn');
 		this.chatContainer = document.getElementById('chatContainer');
 		this.messages = document.getElementById('messages');
-		this.status = document.getElementById('status');
 		this.docsContent = document.getElementById('docsContent');
-		this.unlockedCount = document.getElementById('unlockedCount');
-		this.totalDocs = document.getElementById('totalDocs');
-		this.contactStatus = document.getElementById('contactStatus');
-		this.emailInput = document.getElementById('emailInput');
-		this.submitContact = document.getElementById('submitContact');
+		this.docsSidebar = document.getElementById('docsSidebar');
 	}
 
 	async loadInitialDocs() {
-		this.totalDocs.textContent = this.availableDocs.length;
-		await this.loadAndDisplayDoc('beliefs');
-		this.updateUnlockCounter();
+		this.renderSidebar();
+		this.displayDoc('beliefs');
 	}
 
-	async loadAndDisplayDoc(docName, isNewlyUnlocked = false) {
-		try {
-			const response = await fetch(`/api/docs?doc=${docName}`);
-			const docData = await response.json();
-			this.loadedDocs.set(docName, docData);
-			this.renderDoc(docName, docData, isNewlyUnlocked);
-		} catch (error) { console.error(`Failed to load ${docName}:`, error); }
+	renderSidebar() {
+		this.docsSidebar.innerHTML = this.availableDocs.map(docName => {
+			const isUnlocked = this.unlockedDocs.includes(docName);
+			const isActive = this.activeDoc === docName;
+			return `
+				<div class="doc-icon ${isUnlocked ? 'unlocked' : 'locked'} ${isActive ? 'active' : ''}" 
+					 data-doc="${docName}" 
+					 data-label="${this.docLabels[docName]}"
+					 onclick="voiceChat.selectDoc('${docName}')">
+					${this.docIcons[docName]}
+				</div>
+			`;
+		}).join('');
 	}
 
-	renderDoc(docName, docData, isNewlyUnlocked = false) {
-		const docSection = document.createElement('div');
-		docSection.className = `doc-section${isNewlyUnlocked ? ' newly-unlocked' : ''}`;
-		docSection.id = `doc-${docName}`;
-		const isCollapsed = this.collapsedDocs.has(docName);
+	selectDoc(docName) {
+		if (!this.unlockedDocs.includes(docName)) return;
+		this.activeDoc = docName;
+		this.renderSidebar();
+		this.displayDoc(docName);
+	}
 
-		docSection.innerHTML = `
-			<div class="doc-header" onclick="voiceChat.toggleDoc('${docName}')">
-				<h3>${docData.title}</h3>
-				<span class="doc-toggle">${isCollapsed ? '▶' : '▼'}</span>
-			</div>
-			<div class="doc-content" style="display: ${isCollapsed ? 'none' : 'block'}">
-				${marked.parse(docData.content)}
+	displayDoc(docName, isNewlyUnlocked = false) {
+		const content = this.docContent[docName];
+		if (!content) return;
+
+		this.docsContent.innerHTML = `
+			<div class="doc-section${isNewlyUnlocked ? ' newly-unlocked' : ''}">
+				${marked.parse(content)}
 			</div>
 		`;
 
-		this.docsContent.appendChild(docSection);
-		if (isNewlyUnlocked) setTimeout(() => docSection.classList.remove('newly-unlocked'), 2000);
-	}
-
-	toggleDoc(docName) {
-		const docSection = document.getElementById(`doc-${docName}`);
-		const content = docSection.querySelector('.doc-content');
-		const toggle = docSection.querySelector('.doc-toggle');
-		const isCollapsed = this.collapsedDocs.has(docName);
-
-		if (isCollapsed) {
-			this.collapsedDocs.delete(docName);
-			content.style.display = 'block';
-			toggle.textContent = '▼';
-		} else {
-			this.collapsedDocs.add(docName);
-			content.style.display = 'none';
-			toggle.textContent = '▶';
+		if (isNewlyUnlocked) {
+			setTimeout(() => {
+				const section = this.docsContent.querySelector('.newly-unlocked');
+				if (section) section.classList.remove('newly-unlocked');
+			}, 2000);
 		}
 	}
 
-	updateUnlockCounter = () => {
-		this.unlockedCount.textContent = this.unlockedDocs.length;
-		this.checkContactUnlock();
-	}
-
-	checkContactUnlock = () => {
-		if (this.unlockedDocs.length >= 3) {
-			this.contactStatus.textContent = '🔓 Get updates on AI tools';
-			this.emailInput.disabled = false;
-			this.submitContact.disabled = false;
+	checkForEmailUnlock = () => {
+		if (this.unlockedDocs.length >= 3 && !this.emailOffered) {
+			this.emailOffered = true;
+			setTimeout(() => this.offerEmailCollection(), 2000);
 		}
 	}
 
-	handleContactSubmit = async () => {
-		const email = this.emailInput.value.trim();
+	offerEmailCollection = () => {
+		const emailBubble = document.createElement('div');
+		emailBubble.className = 'message ai email-bubble';
+		emailBubble.innerHTML = `
+			<div>🔓 I see you've unlocked ${this.unlockedDocs.length} docs! Want updates on new AI tools?</div>
+			<div class="email-form">
+				<input type="email" placeholder="your@email.com" id="emailInput">
+				<button onclick="voiceChat.submitEmail()">Submit</button>
+			</div>
+			<div style="font-size: 0.8rem; margin-top: 0.5rem; opacity: 0.8;">I'll only send useful stuff, promise!</div>
+		`;
+		this.messages.appendChild(emailBubble);
+		this.messages.scrollTop = this.messages.scrollHeight;
+	}
+
+	submitEmail = async () => {
+		const emailInput = document.getElementById('emailInput');
+		const email = emailInput.value.trim();
+
 		if (!email || !email.includes('@')) {
 			alert('Please enter a valid email');
 			return;
 		}
-
-		this.submitContact.disabled = true;
-		this.submitContact.textContent = 'Saving...';
 
 		try {
 			await fetch('/api/contact', {
@@ -130,35 +187,95 @@ class VoiceChat {
 				})
 			});
 
-			this.contactStatus.textContent = '✅ Contact saved! Thanks for connecting';
-			this.emailInput.style.display = 'none';
-			this.submitContact.style.display = 'none';
+			emailInput.parentElement.innerHTML = '<div style="color: #4ecdc4;">✅ Thanks! You\'re all set.</div>';
 			localStorage.setItem('userEmail', email);
 		} catch (error) {
-			alert('Failed to save contact. Please try again.');
-			this.submitContact.disabled = false;
-			this.submitContact.textContent = 'Submit';
+			alert('Failed to save email. Please try again.');
 		}
+	}
+
+	startProgressiveEngagement = () => {
+		if (this.engagementStarted || this.engagementStopped) return;
+		this.engagementStarted = true;
+
+		// 1s delay + 1s typing + first message
+		setTimeout(() => {
+			if (this.engagementStopped) return;
+			this.showTypingIndicator();
+
+			setTimeout(() => {
+				if (this.engagementStopped) return;
+				this.hideTypingIndicator();
+				this.addMessage("Hi! I'm curious about what you do and where AI native tools can help you most.", 'ai');
+
+				// 10s delay + 2s typing + second message
+				setTimeout(() => {
+					if (this.engagementStopped) return;
+					this.showTypingIndicator();
+
+					setTimeout(() => {
+						if (this.engagementStopped) return;
+						this.hideTypingIndicator();
+						this.addMessage("Let's talk about it - who do you use as a thought partner now?", 'ai');
+
+						// 10s delay + 2s typing + final message
+						setTimeout(() => {
+							if (this.engagementStopped) return;
+							this.showTypingIndicator();
+
+							setTimeout(() => {
+								if (this.engagementStopped) return;
+								this.hideTypingIndicator();
+								this.addMessage("Just press the microphone to start talking to me 🎤", 'ai');
+							}, 2000);
+						}, 10000);
+					}, 2000);
+				}, 10000);
+			}, 1000);
+		}, 1000);
+	}
+
+	showTypingIndicator = () => {
+		const indicator = document.createElement('div');
+		indicator.className = 'typing-indicator';
+		indicator.id = 'typingIndicator';
+		indicator.innerHTML = `
+			<div class="typing-dots">
+				<div class="dot"></div>
+				<div class="dot"></div>
+				<div class="dot"></div>
+			</div>
+		`;
+		this.messages.appendChild(indicator);
+		this.messages.scrollTop = this.messages.scrollHeight;
+	}
+
+	hideTypingIndicator = () => {
+		const indicator = document.getElementById('typingIndicator');
+		if (indicator) indicator.remove();
 	}
 
 	saveConversationToStorage = () => {
 		localStorage.setItem('chatHistory', JSON.stringify(this.conversationHistory));
 		localStorage.setItem('unlockedDocs', JSON.stringify(this.unlockedDocs));
+		localStorage.setItem('activeDoc', this.activeDoc);
 	}
 
 	loadConversationFromStorage = () => {
 		const savedHistory = localStorage.getItem('chatHistory');
 		const savedDocs = localStorage.getItem('unlockedDocs');
+		const savedActiveDoc = localStorage.getItem('activeDoc');
 		const savedEmail = localStorage.getItem('userEmail');
 
-		if (savedHistory) this.conversationHistory = JSON.parse(savedHistory);
-		if (savedDocs) this.unlockedDocs = JSON.parse(savedDocs);
-		if (savedEmail) {
-			this.emailInput.value = savedEmail;
-			this.contactStatus.textContent = '✅ Contact saved! Thanks for connecting';
-			this.emailInput.style.display = 'none';
-			this.submitContact.style.display = 'none';
+		if (savedHistory) {
+			this.conversationHistory = JSON.parse(savedHistory);
+			this.engagementStopped = true; // Don't show intro if conversation exists
 		}
+		if (savedDocs) this.unlockedDocs = JSON.parse(savedDocs);
+		if (savedActiveDoc && this.unlockedDocs.includes(savedActiveDoc)) {
+			this.activeDoc = savedActiveDoc;
+		}
+		if (savedEmail) this.emailOffered = true;
 	}
 
 	async checkForNewUnlocks(userMessage, aiResponse) {
@@ -176,15 +293,16 @@ class VoiceChat {
 	async unlockDocument(docName) {
 		if (this.unlockedDocs.includes(docName)) return;
 		this.unlockedDocs.push(docName);
-		await this.loadAndDisplayDoc(docName, true);
-		this.updateUnlockCounter();
+		this.displayDoc(docName, true);
+		this.renderSidebar();
+		this.checkForEmailUnlock();
 		this.showUnlockNotification(docName);
 	}
 
 	showUnlockNotification = (docName) => {
 		const notification = document.createElement('div');
 		notification.style.cssText = `position: fixed; top: 20px; right: 20px; background: #4ecdc4; color: #1a1a1a; padding: 1rem; border-radius: 8px; font-weight: 500; z-index: 1000; animation: slideIn 0.3s ease-out;`;
-		notification.textContent = `🔓 Unlocked: ${docName}`;
+		notification.textContent = `🔓 Unlocked: ${this.docLabels[docName]}`;
 		document.body.appendChild(notification);
 		setTimeout(() => {
 			notification.style.animation = 'slideOut 0.3s ease-in';
@@ -192,7 +310,7 @@ class VoiceChat {
 		}, 3000);
 	}
 
-	// FIXED: Proper speech recognition with real pause detection
+	// Speech recognition methods (keeping existing implementation)
 	initSpeech() {
 		if (!('webkitSpeechRecognition' in window)) {
 			alert('Speech recognition not supported');
@@ -200,24 +318,21 @@ class VoiceChat {
 		}
 
 		this.recognition = new webkitSpeechRecognition();
-		this.lastInterimTime = 0; // Track when user last spoke
+		this.lastInterimTime = 0;
 
 		Object.assign(this.recognition, {
-			continuous: false, // Mobile requirement
-			interimResults: true, // CRITICAL for pause detection
+			continuous: false,
+			interimResults: true,
 			lang: 'en-US',
 			maxAlternatives: 1
 		});
 
 		this.recognition.onstart = () => {
 			this.restartAttempts = 0;
-			this.updateStatus('Listening...');
 		};
 
-		// THE KEY: Use interim results to detect real speech pauses
 		this.recognition.onresult = (e) => this.onSpeechResult(e);
 
-		// Auto-restart pattern
 		this.recognition.onend = () => {
 			if (this.isListening && this.restartAttempts < this.maxRestartAttempts) {
 				setTimeout(() => {
@@ -243,11 +358,11 @@ class VoiceChat {
 				case 'aborted':
 					break;
 				case 'network':
-					this.updateStatus('Network error - check connection');
+					console.error('Network error - check connection');
 					this.stopListening();
 					break;
 				case 'not-allowed':
-					this.updateStatus('Microphone permission denied');
+					console.error('Microphone permission denied');
 					this.stopListening();
 					break;
 				default:
@@ -266,12 +381,10 @@ class VoiceChat {
 		};
 	}
 
-	// FIXED: Proper pause detection using interim results
 	onSpeechResult = (event) => {
 		let interimTranscript = '';
 		let finalTranscript = '';
 
-		// Process all results from this event
 		for (let i = event.resultIndex; i < event.results.length; i++) {
 			const transcript = event.results[i][0].transcript;
 			if (event.results[i].isFinal) {
@@ -281,47 +394,93 @@ class VoiceChat {
 			}
 		}
 
-		// Add any final results to accumulated transcript
 		if (finalTranscript.trim()) {
 			this.accumulatedTranscript += finalTranscript;
 		}
 
-		// CRITICAL: If we have interim results, user is still speaking
+		// Show live transcription
+		const fullText = this.accumulatedTranscript + interimTranscript;
+		if (fullText.trim()) {
+			this.updateLiveTranscript(fullText, !!interimTranscript.trim());
+		}
+
 		if (interimTranscript.trim()) {
 			this.lastInterimTime = Date.now();
-			// Cancel any pending send timer - user is still talking!
 			clearTimeout(this.pauseTimer);
-			this.updateStatus(`Speaking: "${this.accumulatedTranscript + interimTranscript}"`);
 		} else if (this.accumulatedTranscript.trim()) {
-			// No interim results but we have accumulated text
-			// Start pause detection timer
 			this.startPauseDetection();
 		}
 	}
 
-	// NEW: Smart pause detection - same timing for all devices
+	updateLiveTranscript = (text, isLive) => {
+		let liveElement = document.getElementById('liveTranscript');
+
+		if (!liveElement) {
+			liveElement = document.createElement('div');
+			liveElement.id = 'liveTranscript';
+			liveElement.className = 'live-transcript';
+			liveElement.onclick = () => this.editTranscript();
+			this.messages.appendChild(liveElement);
+		}
+
+		liveElement.innerHTML = text + (isLive ? '<span class="transcript-cursor">|</span>' : '');
+		this.messages.scrollTop = this.messages.scrollHeight;
+	}
+
+	editTranscript = () => {
+		const liveElement = document.getElementById('liveTranscript');
+		if (!liveElement) return;
+
+		// Create editable input
+		const input = document.createElement('input');
+		input.type = 'text';
+		input.value = this.accumulatedTranscript;
+		input.style.cssText = `
+			width: 100%; 
+			background: #2a2a2a; 
+			border: 1px solid #4ecdc4; 
+			border-radius: 4px; 
+			padding: 0.5rem; 
+			color: #fff; 
+			font-size: 1rem;
+		`;
+
+		input.onkeydown = (e) => {
+			if (e.key === 'Enter') {
+				this.accumulatedTranscript = input.value;
+				this.handlePauseComplete();
+			} else if (e.key === 'Escape') {
+				this.clearLiveTranscript();
+				this.stopListening();
+			}
+		};
+
+		liveElement.innerHTML = '';
+		liveElement.appendChild(input);
+		input.focus();
+		input.select();
+	}
+
+	clearLiveTranscript = () => {
+		const liveElement = document.getElementById('liveTranscript');
+		if (liveElement) liveElement.remove();
+	}
+
 	startPauseDetection = () => {
 		clearTimeout(this.pauseTimer);
-
-		// Wait a bit to see if more interim results come in
 		this.pauseTimer = setTimeout(() => {
 			const timeSinceLastInterim = Date.now() - this.lastInterimTime;
-
-			// If no interim results for 1.5 seconds, start countdown
 			if (timeSinceLastInterim > 1500) {
 				this.startCountdown();
 			} else {
-				// Check again soon
 				this.startPauseDetection();
 			}
 		}, 500);
 	}
 
-	// Same countdown for all devices - no mobile confusion
 	startCountdown = () => {
-		let seconds = 3; // Consistent timing
+		let seconds = 3;
 		const countdownTick = () => {
-			this.updateStatus(`Sending in ${seconds}... ${'●'.repeat(4 - seconds)}`);
 			seconds--;
 			if (seconds > 0) {
 				this.pauseTimer = setTimeout(countdownTick, 1000);
@@ -341,20 +500,22 @@ class VoiceChat {
 
 	processFinalTranscript = (transcript) => {
 		if (!transcript.trim()) return;
+		this.clearLiveTranscript();
 		this.addMessage(transcript, 'user');
 		this.stopListening();
-		this.updateStatus('Thinking...');
 		this.sendToAI(transcript);
 	}
 
 	bindEvents = () => {
 		this.startBtn.onclick = () => this.toggleListening();
-		this.submitContact.onclick = () => this.handleContactSubmit();
 	}
 
-	toggleListening = () => this.isListening ? this.stopListening() : this.startListening();
+	toggleListening = () => {
+		this.engagementStopped = true; // Stop progressive engagement
+		this.hideTypingIndicator();
+		this.isListening ? this.stopListening() : this.startListening();
+	}
 
-	// Enhanced start with safeguards
 	startListening() {
 		if (this.isListening) return;
 
@@ -362,7 +523,8 @@ class VoiceChat {
 		this.accumulatedTranscript = '';
 		this.restartAttempts = 0;
 		this.lastInterimTime = 0;
-		this.startBtn.textContent = '⏹️ Stop';
+		this.clearLiveTranscript();
+		this.startBtn.textContent = '⏹️';
 		this.startBtn.classList.add('listening');
 
 		try {
@@ -373,17 +535,15 @@ class VoiceChat {
 		}
 	}
 
-	// Enhanced stop with cleanup
 	stopListening() {
 		if (!this.isListening) return;
 
 		this.isListening = false;
-		this.restartAttempts = this.maxRestartAttempts; // Prevent auto-restart
+		this.restartAttempts = this.maxRestartAttempts;
 		clearTimeout(this.pauseTimer);
 
-		this.startBtn.textContent = '🎤 Listen';
+		this.startBtn.textContent = '🎤';
 		this.startBtn.classList.remove('listening');
-		this.updateStatus('Click to start listening...');
 
 		try {
 			this.recognition.stop();
@@ -391,10 +551,11 @@ class VoiceChat {
 			console.error('Stop error:', error);
 		}
 
-		// Process any accumulated speech
 		if (this.accumulatedTranscript.trim()) {
 			this.processFinalTranscript(this.accumulatedTranscript);
 			this.accumulatedTranscript = '';
+		} else {
+			this.clearLiveTranscript();
 		}
 	}
 
@@ -417,14 +578,11 @@ class VoiceChat {
 		} catch (error) {
 			this.addMessage('Sorry, something went wrong!', 'ai');
 		}
-		this.updateStatus('Click to start listening...');
 	}
 
 	getRelevantDocs = () => this.unlockedDocs
-		.filter(name => this.loadedDocs.has(name))
-		.map(name => ({ name, content: this.loadedDocs.get(name).content }));
-
-	updateStatus = (text) => this.status.textContent = text;
+		.filter(name => this.docContent[name])
+		.map(name => ({ name, content: this.docContent[name] }));
 
 	addMessage(text, type) {
 		const messageDiv = document.createElement('div');
