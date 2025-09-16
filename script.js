@@ -630,11 +630,27 @@ class VoiceChat {
 			}
 
 			// Touch events for mobile
+			// Replace the mobile event binding with:
 			if (this.isMobile) {
-				this.startBtn.addEventListener('touchstart', handlePressStart, { passive: false });
-				this.startBtn.addEventListener('touchend', handlePressEnd, { passive: false });
-				this.startBtn.addEventListener('touchcancel', handlePressEnd, { passive: false });
-				this.startBtn.addEventListener('click', (e) => e.preventDefault());
+				let touchStartTime = 0;
+
+				this.startBtn.addEventListener('touchstart', (e) => {
+					e.preventDefault();
+					touchStartTime = Date.now();
+					handlePressStart(e);
+				}, { passive: false });
+
+				this.startBtn.addEventListener('touchend', (e) => {
+					e.preventDefault();
+					if (Date.now() - touchStartTime >= 3000) {
+						longPressTriggered = true;
+						this.resetEverything();
+					} else {
+						handlePressEnd(e);
+					}
+				}, { passive: false });
+
+				// Remove touchcancel handler - it's probably interfering
 			}
 		}
 	}
